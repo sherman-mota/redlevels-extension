@@ -213,7 +213,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     return Array.from(map.values()).map((g) => ({
       key: `strat-${g.key}`,
       title: (
-        <span className="flex items-center gap-2 text-sm font-bold text-white tracking-tight">
+        <span className="flex items-center gap-2 text-sm font-bold text-black tracking-tight">
           <Target className="w-4 h-4 text-purple-400" />
           <span>{g.title}</span>
         </span>
@@ -247,13 +247,13 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
           <div>
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
               <Layers className="w-5 h-5 text-rose-500" />
-              <span>Fluxos Táticos</span>
+              <span>Demandas Táticas</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-300 border border-slate-700">
-                {tacticalIssues.length} entregas táticas
+                {tacticalIssues.length} tarefas
               </span>
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Gestão de Épicos e Entregas Táticas com vinculação a iniciativas e rastreio de tarefas filhas.
+              Gestão de demandas táticas
             </p>
           </div>
 
@@ -265,11 +265,10 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('compact')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'compact'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'compact'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
                 title="Colunas compactas (224px) - ideal para múltiplos status"
               >
                 Compacta
@@ -277,11 +276,10 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('normal')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'normal'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'normal'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
                 title="Colunas padrão (272px)"
               >
                 Padrão
@@ -289,11 +287,10 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('wide')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'wide'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'wide'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
                 title="Colunas amplas (320px)"
               >
                 Ampla
@@ -412,11 +409,10 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                onlyBlocked
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                  : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-              }`}
+              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
+                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
             >
               <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
               <span>Itens Bloqueados</span>
@@ -451,7 +447,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
             {/* Top Bar: Requisito 3: ID da tarefa, tracker */}
             <div className="flex items-center justify-between gap-1.5 mb-2">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-mono text-[11px] font-bold text-purple-300 bg-purple-950/50 px-1.5 py-0.2 rounded border border-purple-900/50">
+                <span className="font-mono text-[11px] font-bold text-white bg-purple-950/50 px-1.5 py-0.2 rounded border border-purple-900/50">
                   #{issue.id}
                 </span>
                 <span className="text-[10px] font-medium text-slate-300 bg-slate-800/70 px-1.5 py-0.2 rounded">
@@ -472,7 +468,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
                 <div className="flex-1 leading-tight">
                   <strong className="block text-[10px] font-bold uppercase text-rose-300">
-                    Impedimento Tático
+                    Impedimento
                   </strong>
                   <span className="text-slate-300 line-clamp-2">
                     {issue.block_reason || 'Item bloqueado'}

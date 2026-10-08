@@ -38,11 +38,10 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md sticky top-0 z-30 transition-colors">
-      <div className={`mx-auto transition-all ${
-        currentTab === 'operacional' || currentTab === 'tatico'
+      <div className={`mx-auto transition-all ${currentTab === 'operacional' || currentTab === 'tatico'
           ? 'w-full px-4 sm:px-6 lg:px-8'
           : 'max-w-7xl px-4 sm:px-6'
-      }`}>
+        }`}>
         <div className="flex items-center justify-between h-16 gap-3">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
@@ -111,18 +110,16 @@ export const Header: React.FC<HeaderProps> = ({
           <nav className="flex items-center gap-1 overflow-x-auto py-1 scrollbar-none">
             <button
               onClick={() => onSelectTab('inbox')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                currentTab === 'inbox'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'inbox'
                   ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
+                }`}
             >
               <Inbox className="w-3.5 h-3.5" />
               <span>Inbox</span>
               {inboxCount > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  currentTab === 'inbox' ? 'bg-white/20 text-white' : 'bg-rose-500/30 text-rose-300'
-                }`}>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${currentTab === 'inbox' ? 'bg-white/20 text-white' : 'bg-rose-500/30 text-rose-300'
+                  }`}>
                   {inboxCount}
                 </span>
               )}
@@ -130,11 +127,10 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => onSelectTab('operacional')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                currentTab === 'operacional'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'operacional'
                   ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
+                }`}
             >
               <Kanban className="w-3.5 h-3.5" />
               <span>Operacional</span>
@@ -145,11 +141,10 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => onSelectTab('tatico')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                currentTab === 'tatico'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'tatico'
                   ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
+                }`}
             >
               <Layers className="w-3.5 h-3.5" />
               <span>Tático</span>
@@ -157,11 +152,10 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => onSelectTab('estrategico')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                currentTab === 'estrategico'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'estrategico'
                   ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
+                }`}
             >
               <GitBranch className="w-3.5 h-3.5" />
               <span>Estratégico</span>
@@ -169,15 +163,14 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => onSelectTab('configuracao')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                currentTab === 'configuracao'
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'configuracao'
                   ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
+                }`}
               title="Configurações e Mapeamentos"
             >
               <Settings className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Config</span>
+              <span className="hidden sm:inline">Configuração</span>
             </button>
           </nav>
 

@@ -94,7 +94,7 @@ export interface StatusMapping {
   todo?: number[];
 }
 
-export type ThemeId = 'redlevels' | 'midnight' | 'light' | 'emerald' | 'amber';
+export type ThemeId = 'redmine' | 'redlevels' | 'midnight' | 'light' | 'emerald' | 'amber';
 
 export interface RedlevelsConfig {
   redmineUrl: string;

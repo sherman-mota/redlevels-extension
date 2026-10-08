@@ -60,7 +60,7 @@ export const DEFAULT_CONFIG: RedlevelsConfig = {
   statusMapping: EMPTY_STATUS_MAPPING,
   operationalStatusMapping: EMPTY_STATUS_MAPPING,
   tacticalStatusMapping: EMPTY_STATUS_MAPPING,
-  theme: 'redlevels',
+  theme: 'redmine',
   hasSeenTour: false,
   operationalColumnOrder: [],
   tacticalColumnOrder: [],

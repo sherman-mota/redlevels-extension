@@ -30,7 +30,7 @@ export const FirstTimeTour: React.FC<FirstTimeTourProps> = ({ isOpen, onClose, o
       tab: 'inbox' as const,
       icon: Inbox,
       badge: 'Foco Diário',
-      title: 'Inbox Pessoal',
+      title: 'Inbox',
       headline: 'Suas tarefas e itens observados em um único lugar',
       description:
         'Ficam reunidas todas as tarefas atribuídas diretamente ao seu usuário ou que você marcou para observar. Permite ação rápida, atualização de status e visualização de prazos imediatos.',
@@ -45,8 +45,8 @@ export const FirstTimeTour: React.FC<FirstTimeTourProps> = ({ isOpen, onClose, o
       id: 'operacional',
       tab: 'operacional' as const,
       icon: Kanban,
-      badge: 'Nível Operacional',
-      title: 'Fluxos Operacionais',
+      badge: 'Tarefas de Nível Operacional',
+      title: 'Operacional',
       headline: 'Para execução do dia a dia das equipes',
       description:
         'Aqui ficam as tarefas do nível operacional. As tarefas são exibidas como cards organizados em um Kanban, onde cada coluna representa a situação da tarefa.',
@@ -62,8 +62,8 @@ export const FirstTimeTour: React.FC<FirstTimeTourProps> = ({ isOpen, onClose, o
       id: 'tatico',
       tab: 'tatico' as const,
       icon: Layers,
-      badge: 'Nível Tático',
-      title: 'Fluxos Táticos',
+      badge: 'Tarefas de Nível Tático',
+      title: 'Tático',
       headline: 'Entregas Táticas conectando estratégia e operação',
       description:
         'Reúne as entregas do nível tático, focado na coordenação do trabalho entre as equipes. Cada card no Kanban exibe o responsável, projeto, e a lista de IDs das tarefas filhas sob sua responsabilidade.',
@@ -79,14 +79,14 @@ export const FirstTimeTour: React.FC<FirstTimeTourProps> = ({ isOpen, onClose, o
       id: 'estrategico',
       tab: 'estrategico' as const,
       icon: GitBranch,
-      badge: 'Nível Estratégico',
-      title: 'Iniciativas Estratégicas',
-      headline: 'Exibe hierarquicamente Iniciativas, Entregas e Tarefas',
+      badge: 'Projetos Estratégicos',
+      title: 'Estratégico',
+      headline: 'Tarefas hierarquizados por projetos estratégicos',
       description:
-        'Visão em árvore de 3 níveis: lista as iniciativas estratégicas da organização. Ao expandir uma iniciativa, exibe as tarefas táticas relacionadas; ao clicar em uma tarefa tática, abre as tarefas operacionais filhas.',
+        'Visão hierárquica das tarefas por projeto estratégico, tarefas táticas e operacionais. ',
       highlights: [
-        'Hierarquia viva: Iniciativa Estratégica ➔ Entrega Tática ➔ Tarefa Operacional',
-        'Barras de progresso e métricas agregadas por iniciativa',
+        'Tarefas organizadas hierarquicamente por projetos estratégicos',
+        'Barras de progresso e métricas agregadas por iniciativa estratégica',
         'Filtros por projeto, responsável, status e itens bloqueados',
         'Acesso a todos os detalhes técnicos clicando em qualquer nó da árvore',
       ],
@@ -96,17 +96,17 @@ export const FirstTimeTour: React.FC<FirstTimeTourProps> = ({ isOpen, onClose, o
       id: 'configuracao',
       tab: 'configuracao' as const,
       icon: Settings,
-      badge: 'Personalização & Integração',
-      title: 'Painel de Configurações',
+      badge: 'Integraçao com Redmine',
+      title: 'Configuração',
       headline: 'Configure todos os mapeamentos necessários entre Redmine e Redlevels',
       description:
-        'Área central para calibrar como o Redlevels se comunica com o seu Redmine e interpreta o seu fluxo de trabalho.',
+        'Área central para integrar o Redlevels ao seu Redmine',
       highlights: [
         'URL da aplicação e API Key com teste instantâneo de conexão',
         'Seleção de quais tipos de tarefa estão no nível operacional e tático',
         'Mapeamento de campos customizados do Redmine para Iniciativa Estratégica e Bloqueio (item pausado)',
         'Mapeador flexível dos status do Redmine para os tipos de colunas do Kanban (Backlog, Em Análise, Em Progresso, Concluído) separado por tipo',
-        'Seleção de temas visuais (Redlevels Crimson, Midnight, Emerald, Amber, Light)',
+        'Seleção de temas visuais',
       ],
       color: 'from-amber-500 to-orange-600',
     },
@@ -129,10 +129,10 @@ export const FirstTimeTour: React.FC<FirstTimeTourProps> = ({ isOpen, onClose, o
         <div className="px-6 py-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/50">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-rose-600 flex items-center justify-center text-white font-black text-sm">
-              RL
+              <img src="./icons/icon-32.png" alt="RL" className="w-6 h-6 rounded-md" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-black flex items-center gap-2">
                 Conheça o Redlevels
                 <span className="text-[11px] font-normal text-slate-400">
                   (Passo {activeStep + 1} de {tourSections.length})

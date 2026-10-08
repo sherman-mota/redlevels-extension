@@ -12,10 +12,16 @@ export interface ThemeDefinition {
 
 /** Visual tokens live in index.css (html[data-theme=...]); this is picker metadata. */
 export const THEMES: Record<ThemeId, ThemeDefinition> = {
+  redmine: {
+    id: 'redmine',
+    name: 'Redmine Org Classic',
+    description: 'Visual clássico do Redmine org (#628DB6 e azul ardósia - Padrão)',
+    swatches: ['#eeeeee', '#ffffff', '#628db6'],
+  },
   redlevels: {
     id: 'redlevels',
     name: 'Redlevels Crimson',
-    description: 'Escuro sofisticado com destaques rubi (padrão)',
+    description: 'Escuro sofisticado com destaques rubi',
     swatches: ['#020617', '#1e293b', '#e11d48'],
   },
   midnight: {
@@ -45,5 +51,5 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
 };
 
 export function applyTheme(theme: ThemeId) {
-  document.documentElement.dataset.theme = THEMES[theme] ? theme : 'redlevels';
+  document.documentElement.dataset.theme = THEMES[theme] ? theme : 'redmine';
 }

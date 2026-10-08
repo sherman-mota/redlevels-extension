@@ -179,7 +179,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     return Array.from(map.values()).map((p) => ({
       key: `project-${p.id}`,
       title: (
-        <span className="flex items-center gap-2 text-sm font-bold text-white tracking-tight">
+        <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
           <FolderGit2 className="w-4 h-4 text-rose-400" />
           <span>{p.name}</span>
         </span>
@@ -213,13 +213,13 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           <div>
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
               <Kanban className="w-5 h-5 text-rose-500" />
-              <span>Fluxos Operacionais</span>
+              <span>Tarefas Operacionais</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-300 border border-slate-700">
                 {operationalIssues.length} tarefas
               </span>
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Kanban ágil de execução por status do Redmine. Arraste cards para atualizar o status instantaneamente.
+              Kanban de tarefas operacionais. Arraste cards para atualizar o status instantaneamente.
             </p>
           </div>
 
@@ -231,11 +231,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('compact')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'compact'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'compact'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
                 title="Colunas compactas (224px) - ideal para múltiplos status"
               >
                 Compacta
@@ -243,11 +242,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('normal')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'normal'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'normal'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
                 title="Colunas padrão (272px)"
               >
                 Padrão
@@ -255,11 +253,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('wide')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'wide'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'wide'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
                 title="Colunas amplas (320px)"
               >
                 Ampla
@@ -267,7 +264,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             </div>
 
             {/* Group By Project Switch */}
-            <label className="flex items-center gap-2 cursor-pointer bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800 text-xs text-slate-300 hover:text-white">
+            <label className="flex items-center gap-2 cursor-pointer bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800 text-xs text-slate-300 hover:text-blue-500">
               <input
                 type="checkbox"
                 checked={groupByProject}
@@ -362,11 +359,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                onlyBlocked
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                  : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-              }`}
+              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
+                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
             >
               <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
               <span>Itens Bloqueados</span>

@@ -377,18 +377,16 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
               <GitBranch className="w-5 h-5 text-rose-500" />
               <span>Iniciativas Estratégicas</span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                Hierarquia 3 Níveis
-              </span>
+
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Rastreabilidade ponta a ponta: <strong>Estratégico ➔ Tático ➔ Operacional </strong>
+              Tarefas hierarquizadas por iniciativas Estratégicas
             </p>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {strategicCustomField ? (
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
                   <Tag className="w-3 h-3 text-rose-400" />
-                  <span>Agrupando tarefas táticas por: <strong className="text-white">{strategicCustomField.name}</strong></span>
+                  <span>Agrupando por: <strong className="text-black">{strategicCustomField.name}</strong></span>
                 </span>
               ) : (
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-950/70 text-amber-300 border border-amber-800/70 flex items-center gap-1.5">
@@ -411,7 +409,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
               }}
               className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 hover:text-white transition-colors"
             >
-              Alternar Todas as Iniciativas
+              Colapsar ou Expandir
             </button>
           </div>
         </div>
@@ -514,8 +512,8 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
             <button
               onClick={() => setOnlyBlocked(!onlyBlocked)}
               className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                  : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
+                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
                 }`}
             >
               <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
@@ -569,20 +567,11 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
 
                   <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-xs px-2 py-0.5 rounded font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                        {initiative.code || 'ESTRATÉGIA'}
-                      </span>
+
                       <h3 className="text-base font-bold text-white tracking-tight truncate">
                         {initiative.title}
                       </h3>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${initiative.status === 'Em Risco'
-                          ? 'bg-red-950/70 text-red-300 border border-red-800/60'
-                          : initiative.status === 'Concluído'
-                            ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/60'
-                            : 'bg-blue-950/70 text-blue-300 border border-blue-800/60'
-                        }`}>
-                        {initiative.status}
-                      </span>
+
                     </div>
                     {initiative.description && (
                       <p className="text-xs text-slate-400 line-clamp-1">
@@ -604,17 +593,17 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <Layers className="w-3.5 h-3.5 text-purple-400" />
                     <span className="font-semibold text-slate-200">{totalTactical}</span>
-                    <span className="hidden sm:inline">táticas</span>
+                    <span className="hidden sm:inline">tarefas</span>
                   </div>
 
                   <div className="flex items-center gap-2.5 min-w-[130px]">
                     <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-rose-500 to-red-500 rounded-full transition-all"
+                        className="h-full bg-gradient-to-r from-blue-500 to-blue-500 rounded-full transition-all"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <span className="font-mono text-xs font-bold text-white min-w-[32px]">
+                    <span className="font-mono text-xs font-bold text-black min-w-[32px]">
                       {progress}%
                     </span>
                   </div>
@@ -666,7 +655,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
 
                               <div className="space-y-1 flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono text-xs px-2 py-0.2 rounded font-bold bg-purple-950/60 text-purple-300 border border-purple-800/60">
+                                  <span className="font-mono text-xs px-2 py-0.2 rounded font-bold bg-purple-950/60 text-white border border-purple-800/60 ">
                                     #{tactical.id}
                                   </span>
                                   <span className="text-[11px] font-semibold text-slate-300 bg-slate-800 px-2 py-0.2 rounded">
@@ -678,7 +667,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
                                   </span>
                                 </div>
 
-                                <h4 className="text-sm font-semibold text-white truncate hover:text-rose-300 transition-colors">
+                                <h4 className="text-sm font-semibold text-black truncate hover:text-rose-300 transition-colors">
                                   {tactical.subject}
                                 </h4>
                               </div>
@@ -721,7 +710,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
                               <div className="flex items-center justify-between text-xs text-slate-400 pb-1 border-b border-slate-800/60">
                                 <span className="font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5 text-slate-300">
                                   <Activity className="w-3.5 h-3.5 text-rose-400" />
-                                  Tarefas Operacionais Filhas ({childOperationalIssues.length})
+                                  ({childOperationalIssues.length}) Tarefas
                                 </span>
                               </div>
 

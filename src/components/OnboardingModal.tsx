@@ -71,7 +71,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       } else {
         setErrorMessage(
           res.error ||
-            'Não foi possível conectar ao Redmine. Verifique se a URL está acessível e se a API Key tem permissões habilitadas nas preferências de sua conta.'
+          'Não foi possível conectar ao Redmine. Verifique se a URL está acessível e se a API Key tem permissões habilitadas nas preferências de sua conta.'
         );
       }
     } catch (err: any) {
@@ -93,12 +93,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             <div>
               <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
                 Bem-vindo ao Redlevels
-                <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                  Extensão
-                </span>
+
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Conecte seu Redmine para desbloquear fluxos em Kanban e visão Estratégica
+                Conecte no seu Redmine para utilizar o Redlevels
               </p>
             </div>
           </div>
@@ -146,7 +144,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <KeyRound className="w-3.5 h-3.5 text-rose-400" />
-                    Chave de API (api_key)
+                    Chave de API
                   </span>
                   <span className="text-[11px] text-slate-400 font-normal">Token de 40 dígitos</span>
                 </label>
@@ -193,7 +191,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold text-sm shadow-lg shadow-rose-900/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold text-sm shadow-lg shadow-rose-900/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isLoading ? (
                   <>

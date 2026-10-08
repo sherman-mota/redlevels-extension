@@ -35,8 +35,18 @@
 @utility animate-shake { animation: var(--animate-shake); }
 
 @layer base {
-  html { color-scheme: dark; }
-  html[data-theme='light'] { color-scheme: light; }
+  html { color-scheme: light; }
+  html[data-theme='redlevels'],
+  html[data-theme='midnight'],
+  html[data-theme='emerald'],
+  html[data-theme='amber'] {
+    color-scheme: dark;
+  }
+  html[data-theme='light'],
+  html[data-theme='redmine'] {
+    color-scheme: light;
+  }
+
   body { font-family: var(--font-sans); }
   code, pre, .font-mono { font-family: var(--font-mono); }
   button:not(:disabled), [role='button'], label { cursor: pointer; }
@@ -64,7 +74,258 @@
 /* follows the selected theme without per-component logic.            */
 /* ------------------------------------------------------------------ */
 
-/* Midnight Navy — indigo accent, deep-blue neutrals */
+/* ================================================================== */
+/* 1. Redmine Org Classic Theme (Default)                             */
+/* Captured from https://www.redmine.org/                             */
+/* Header: #628DB6 | Top Menu: #3E5B76 | Hover: #759FCF | Link: #116699 */
+/* Canvas: #EEEEEE | Surfaces: #FFFFFF | Borders: #D8DCE2             */
+/* ================================================================== */
+html:not([data-theme]),
+html[data-theme='redmine'] {
+  --color-slate-50: oklch(16% 0.015 240);    /* #141c24 */
+  --color-slate-100: oklch(23% 0.015 240);   /* #222e3a - Body text (#333) */
+  --color-slate-200: oklch(31% 0.015 240);   /* #354250 */
+  --color-slate-300: oklch(41% 0.015 240);   /* #4d5b6a - Subdued text (#555) */
+  --color-slate-400: oklch(51% 0.012 240);   /* #647382 - Labels & icons (#666) */
+  --color-slate-500: oklch(61% 0.01 240);    /* #7c8b9a - Muted caption (#777) */
+  --color-slate-600: oklch(73% 0.012 240);   /* #a0b0c0 - Inactive border/element */
+  --color-slate-700: oklch(85% 0.01 240);    /* #cad4df - Borders & separators (#ccc/#ddd) */
+  --color-slate-800: oklch(93.5% 0.008 240); /* #e6ebf0 - Header tables, subtle panels (#eee) */
+  --color-slate-900: oklch(100% 0 0);        /* #ffffff - Pure white content surfaces & cards */
+  --color-slate-950: oklch(95% 0.006 240);   /* #eeeeee - Overall Redmine page canvas */
+
+  /* Redmine Signature Blues (Mapped to Rose palette for components) */
+  --color-rose-50: oklch(22% 0.06 245);      /* #16304e */
+  --color-rose-100: oklch(30% 0.07 245);     /* #1e3f66 */
+  --color-rose-200: oklch(40% 0.09 245);     /* #2a5685 - Redmine contextual blue */
+  --color-rose-300: oklch(48% 0.11 245);     /* #116699 - Redmine issue links (#169) */
+  --color-rose-400: oklch(58% 0.10 245);     /* #4b7daf */
+  --color-rose-500: oklch(69% 0.11 250);     /* #759fcF - Redmine menu hover & button accent */
+  --color-rose-600: oklch(62% 0.085 242);    /* #628db6 - Iconic Redmine header blue */
+  --color-rose-700: oklch(52% 0.08 242);     /* #4d7297 - Pressed / active state */
+  --color-rose-800: oklch(85% 0.04 245);     /* #c7dbed - Light blue border */
+  --color-rose-900: oklch(92% 0.025 245);    /* #dfedf9 - Light blue badge border */
+  --color-rose-950: oklch(96.5% 0.015 245);  /* #eef5fd - Soft blue badge/highlight bg */
+
+  /* Redmine Alerts & Impediments (flash.error / overdue #c22) */
+  --color-red-100: #880000;
+  --color-red-200: #a81313;
+  --color-red-300: #c61a1a;
+  --color-red-500: #c61a1a;
+  --color-red-600: #a81313;
+  --color-red-700: #d88888;
+  --color-red-800: #f8b4b4;
+  --color-red-900: #ffd5d5;
+  --color-red-950: #ffe3e3;
+
+  /* Redmine Success (flash.notice #dfffdf) */
+  --color-emerald-100: #005f00;
+  --color-emerald-200: #1e6523;
+  --color-emerald-300: #2e7d32;
+  --color-emerald-500: #2e7d32;
+  --color-emerald-600: #236b28;
+  --color-emerald-700: #9fcf9f;
+  --color-emerald-800: #bfe6bf;
+  --color-emerald-900: #d5f5d5;
+  --color-emerald-950: #dfffdf;
+
+  /* Redmine Warning (flash.warning #F3EDD1 / #FFEBC1) */
+  --color-amber-100: #8a6d3b;
+  --color-amber-200: #a6750c;
+  --color-amber-300: #c48a10;
+  --color-amber-500: #d97706;
+  --color-amber-600: #b45309;
+  --color-amber-700: #eadbbc;
+  --color-amber-800: #fde29d;
+  --color-amber-900: #ffebc1;
+  --color-amber-950: #f3edd1;
+
+  /* Redmine Blue palette */
+  --color-blue-100: #163353;
+  --color-blue-200: #214972;
+  --color-blue-300: #2a5685;
+  --color-blue-500: #628db6;
+  --color-blue-700: #aecde8;
+  --color-blue-800: #cce1f4;
+  --color-blue-900: #dfedf9;
+  --color-blue-950: #eef5fd;
+}
+
+/* Redmine-specific component styling */
+html:not([data-theme]) header,
+html[data-theme='redmine'] header {
+  background: #628DB6 !important;
+  border-top: 3px solid #3E5B76 !important;
+  border-bottom: 1px solid #4D7297 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+}
+
+html:not([data-theme]) header .text-white,
+html[data-theme='redmine'] header .text-white {
+  color: #FFFFFF !important;
+}
+
+html:not([data-theme]) header .text-slate-400,
+html[data-theme='redmine'] header .text-slate-400 {
+  color: #D6E4F0 !important;
+}
+
+html:not([data-theme]) header .text-slate-300,
+html[data-theme='redmine'] header .text-slate-300 {
+  color: #FFFFFF !important;
+}
+
+/* Inactive navigation button hover in header */
+html:not([data-theme]) header nav button:not(.bg-rose-600):hover,
+html[data-theme='redmine'] header nav button:not(.bg-rose-600):hover {
+  background-color: #759FCF !important;
+  color: #FFFFFF !important;
+}
+
+/* Active tab button in header: Redmine selected menu style */
+html:not([data-theme]) header nav button.bg-rose-600,
+html[data-theme='redmine'] header nav button.bg-rose-600 {
+  background-color: #FFFFFF !important;
+  color: #2A5685 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+}
+
+html:not([data-theme]) header nav button.bg-rose-600 .bg-white\/20,
+html[data-theme='redmine'] header nav button.bg-rose-600 .bg-white\/20 {
+  background-color: #EEF5FD !important;
+  color: #2A5685 !important;
+}
+
+/* Header utility buttons (refresh, tour, redmine link) */
+html:not([data-theme]) header button.text-slate-300:hover,
+html[data-theme='redmine'] header button.text-slate-300:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+}
+
+/* Kanban Cards: crisp white surfaces with Redmine borders */
+html:not([data-theme]) [role="button"].cursor-grab,
+html[data-theme='redmine'] [role="button"].cursor-grab {
+  background-color: #FFFFFF !important;
+  border-color: #D8DCE2 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+html:not([data-theme]) [role="button"].cursor-grab:hover,
+html[data-theme='redmine'] [role="button"].cursor-grab:hover {
+  border-color: #759FCF !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Blocked card highlight */
+html:not([data-theme]) [role="button"].cursor-grab.border-rose-800\/70,
+html[data-theme='redmine'] [role="button"].cursor-grab.border-rose-800\/70 {
+  background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+  border-color: #E2A0A0 !important;
+}
+
+/* Issue card subject hover turns Redmine link blue */
+html:not([data-theme]) [role="button"].cursor-grab:hover h5,
+html[data-theme='redmine'] [role="button"].cursor-grab:hover h5 {
+  color: #116699 !important;
+}
+
+/* Form controls (input, select, textarea) */
+html:not([data-theme]) input,
+html:not([data-theme]) textarea,
+html:not([data-theme]) select,
+html[data-theme='redmine'] input,
+html[data-theme='redmine'] textarea,
+html[data-theme='redmine'] select {
+  color: #222E3A !important;
+  background-color: #FFFFFF !important;
+  border-color: #CAD4DF !important;
+}
+
+html:not([data-theme]) input::placeholder,
+html:not([data-theme]) textarea::placeholder,
+html[data-theme='redmine'] input::placeholder,
+html[data-theme='redmine'] textarea::placeholder {
+  color: #8898AA !important;
+}
+
+html:not([data-theme]) input:focus,
+html:not([data-theme]) textarea:focus,
+html:not([data-theme]) select:focus,
+html[data-theme='redmine'] input:focus,
+html[data-theme='redmine'] textarea:focus,
+html[data-theme='redmine'] select:focus {
+  border-color: #628DB6 !important;
+  box-shadow: 0 0 0 2px rgba(98, 141, 182, 0.25) !important;
+}
+
+/* Headings in main views */
+html:not([data-theme]) main h1.text-white,
+html:not([data-theme]) main h2.text-white,
+html:not([data-theme]) main h3.text-white,
+html[data-theme='redmine'] main h1.text-white,
+html[data-theme='redmine'] main h2.text-white,
+html[data-theme='redmine'] main h3.text-white {
+  color: #2A5685 !important;
+}
+
+/* Modals */
+html:not([data-theme]) .fixed.inset-0.bg-slate-950\/80,
+html[data-theme='redmine'] .fixed.inset-0.bg-slate-950\/80 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+html:not([data-theme]) .fixed.inset-0 .bg-slate-900,
+html[data-theme='redmine'] .fixed.inset-0 .bg-slate-900 {
+  background-color: #FFFFFF !important;
+  border-color: #D5DCE4 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+html:not([data-theme]) .fixed.inset-0 h2.text-white,
+html[data-theme='redmine'] .fixed.inset-0 h2.text-white {
+  color: #2A5685 !important;
+}
+
+html:not([data-theme]) .grid h4.text-white,
+html[data-theme='redmine'] .grid h4.text-white {
+  color: #222E3A !important;
+}
+
+/* ================================================================== */
+/* 2. Redlevels Crimson Theme (Dark)                                  */
+/* ================================================================== */
+html[data-theme='redlevels'] {
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+  --color-rose-800: #9f1239;
+  --color-rose-900: #881337;
+  --color-rose-950: #4c0519;
+}
+
+/* ================================================================== */
+/* 3. Midnight Navy — indigo accent, deep-blue neutrals               */
+/* ================================================================== */
 html[data-theme='midnight'] {
   --color-slate-50: oklch(98% 0.006 265);
   --color-slate-100: oklch(96% 0.012 265);
@@ -93,7 +354,9 @@ html[data-theme='midnight'] {
   --color-red-700: oklch(44% 0.22 292);
 }
 
-/* Emerald Aurora — emerald accent, teal-tinted neutrals */
+/* ================================================================== */
+/* 4. Emerald Aurora — emerald accent, teal-tinted neutrals           */
+/* ================================================================== */
 html[data-theme='emerald'] {
   --color-slate-50: oklch(98% 0.005 175);
   --color-slate-100: oklch(96% 0.01 175);
@@ -122,7 +385,9 @@ html[data-theme='emerald'] {
   --color-red-700: oklch(48% 0.1 194);
 }
 
-/* Warm Amber Dark — amber accent, warm charcoal neutrals */
+/* ================================================================== */
+/* 5. Warm Amber Dark — amber accent, warm charcoal neutrals          */
+/* ================================================================== */
 html[data-theme='amber'] {
   --color-slate-50: oklch(98.5% 0.004 75);
   --color-slate-100: oklch(96.5% 0.007 75);
@@ -151,7 +416,9 @@ html[data-theme='amber'] {
   --color-red-700: oklch(55.3% 0.195 38.402);
 }
 
-/* Clean Light — dark palettes inverted (50↔950, 100↔900, 200↔800, 300↔700) */
+/* ================================================================== */
+/* 6. Clean Light — high-contrast light mode                          */
+/* ================================================================== */
 html[data-theme='light'] {
   --color-slate-50: oklch(12.9% 0.042 264.695);
   --color-slate-100: oklch(20.8% 0.042 265.755);

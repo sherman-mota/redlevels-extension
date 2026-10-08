@@ -109,7 +109,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
               <Inbox className="w-5 h-5 text-rose-500" />
               <span>Inbox de Tarefas</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                {currentList.length} itens
+                {currentList.length} tarefas
               </span>
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -137,11 +137,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
           <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
               onClick={() => setInboxTab('assigned')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                inboxTab === 'assigned'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${inboxTab === 'assigned'
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+                }`}
             >
               <UserCheck className="w-3.5 h-3.5" />
               <span>Atribuídas a Mim ({assignedIssues.length})</span>
@@ -149,11 +148,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
             <button
               onClick={() => setInboxTab('watched')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                inboxTab === 'watched'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${inboxTab === 'watched'
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+                }`}
             >
               <Eye className="w-3.5 h-3.5" />
               <span>Observadas / Acompanhadas ({watchedIssues.length})</span>
@@ -190,11 +188,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
             {/* Blocked */}
             <button
               onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                onlyBlocked
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                  : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-              }`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${onlyBlocked
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
             >
               <AlertTriangle className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Bloqueadas</span>
@@ -218,11 +215,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
             <div
               key={issue.id}
               onClick={() => onSelectIssue(issue)}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:-translate-y-0.5 ${
-                issue.is_blocked
-                  ? 'bg-gradient-to-r from-rose-950/40 via-slate-900 to-slate-900 border-rose-800/80 hover:border-rose-600'
-                  : 'bg-slate-900/80 hover:bg-slate-850 border-slate-800 hover:border-slate-700'
-              }`}
+              className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:-translate-y-0.5 ${issue.is_blocked
+                ? 'bg-gradient-to-r from-rose-950/40 via-slate-900 to-slate-900 border-rose-800/80 hover:border-rose-600'
+                : 'bg-slate-900/80 hover:bg-slate-850 border-slate-800 hover:border-slate-700'
+                }`}
             >
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 <span className="font-mono text-xs font-bold text-rose-300 bg-rose-950/50 px-2 py-0.5 rounded-lg border border-rose-900/50 shrink-0 mt-0.5">

@@ -65,7 +65,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
   const [strategicCustomFieldId, setStrategicCustomFieldId] = useState<number | undefined>(config.strategicCustomFieldId);
   const [blockedCustomFieldId, setBlockedCustomFieldId] = useState<number | undefined>(config.blockedCustomFieldId);
   const [blockedCustomFieldValueTrigger, setBlockedCustomFieldValueTrigger] = useState<string>(config.blockedCustomFieldValueTrigger || 'Sim');
-  
+
   // Status mapping separated by operational and tactical
   const [operationalStatusMapping, setOperationalStatusMapping] = useState(
     config.operationalStatusMapping
@@ -448,7 +448,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             <span>Configurações do Redlevels</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Defina credenciais de API, classificação de níveis operacionais/táticos, campos personalizados e mapeamento Kanban.
+            Defina as configurações necessárias para o funcionamento do Redlevels.
           </p>
         </div>
 
@@ -479,7 +479,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold text-xs shadow-md shadow-rose-900/30 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold text-xs shadow-md shadow-rose-900/30 transition-all disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             <span>{savedSuccess ? 'Configurações Salvas!' : 'Salvar Alterações'}</span>
@@ -490,11 +490,10 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
       {/* Import Notification */}
       {importNotice && (
         <div
-          className={`p-3.5 rounded-xl border text-xs flex items-center gap-2 animate-fadeIn ${
-            importNotice.type === 'success'
-              ? 'bg-emerald-950/80 border-emerald-700/80 text-emerald-200'
-              : 'bg-rose-950/80 border-rose-700/80 text-rose-200'
-          }`}
+          className={`p-3.5 rounded-xl border text-xs flex items-center gap-2 animate-fadeIn ${importNotice.type === 'success'
+            ? 'bg-emerald-950/80 border-emerald-700/80 text-emerald-200'
+            : 'bg-rose-950/80 border-rose-700/80 text-rose-200'
+            }`}
         >
           {importNotice.type === 'success' ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -579,20 +578,19 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             type="button"
             onClick={handleTestConnection}
             disabled={isTesting}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-black text-xs font-semibold border border-slate-700 transition-colors disabled:opacity-50"
           >
-            {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-rose-400" />}
+            {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-black" />}
             <span>Testar Conexão</span>
           </button>
         </div>
 
         {testResult && (
           <div
-            className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
-              testResult.success
-                ? 'bg-emerald-950/60 border-emerald-800/80 text-emerald-200'
-                : 'bg-rose-950/60 border-rose-800/80 text-rose-200'
-            }`}
+            className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${testResult.success
+              ? 'bg-emerald-950/60 border-emerald-800/80 text-emerald-200'
+              : 'bg-rose-950/60 border-rose-800/80 text-rose-200'
+              }`}
           >
             {testResult.success ? (
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -620,7 +618,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
               <div>
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 text-rose-400">
                   <Kanban className="w-4 h-4" />
-                  <span>2. Nível Operacional (Trackers)</span>
+                  <span>2. Tipos de Tarefas do Nível Operacional</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Quais tipos de tarefas alimentam o <strong>Kanban Operacional</strong>
@@ -664,33 +662,30 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
               <button
                 type="button"
                 onClick={() => setOpTrackerFilterMode('all')}
-                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                  opTrackerFilterMode === 'all'
-                    ? 'bg-slate-800 text-white font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
-                }`}
+                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${opTrackerFilterMode === 'all'
+                  ? 'bg-slate-800 text-blue font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
+                  }`}
               >
                 Todos ({trackers.length})
               </button>
               <button
                 type="button"
                 onClick={() => setOpTrackerFilterMode('selected')}
-                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                  opTrackerFilterMode === 'selected'
-                    ? 'bg-rose-950 border border-rose-700/80 text-rose-200 font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
-                }`}
+                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${opTrackerFilterMode === 'selected'
+                  ? 'bg-rose-950 border border-rose-700/80 text-rose-200 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
+                  }`}
               >
                 Selecionados ({operationalTrackerIds.length})
               </button>
               <button
                 type="button"
                 onClick={() => setOpTrackerFilterMode('unmapped')}
-                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                  opTrackerFilterMode === 'unmapped'
-                    ? 'bg-amber-950 border border-amber-700/80 text-amber-200 font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
-                }`}
+                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${opTrackerFilterMode === 'unmapped'
+                  ? 'bg-amber-950 border border-amber-700/80 text-amber-200 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
+                  }`}
               >
                 Livres ({trackers.filter((t) => !operationalTrackerIds.includes(t.id) && !tacticalTrackerIds.includes(t.id)).length})
               </button>
@@ -745,25 +740,24 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                     <label
                       key={t.id}
                       onClick={() => toggleOperationalTracker(t.id)}
-                      className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition-colors ${
-                        isChecked
-                          ? 'bg-rose-950/40 border-rose-800 text-white'
-                          : 'bg-slate-950/50 border-slate-800/80 text-slate-400 hover:text-slate-200'
-                      }`}
+                      className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition-colors ${isChecked
+                        ? 'bg-rose-950/40 border-rose-800 text-blue'
+                        : 'bg-slate-950/50 border-slate-800/80 text-slate-400 hover:text-slate-200'
+                        }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => {}}
-                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer shrink-0"
+                          onChange={() => { }}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer shrink-0"
                         />
                         <span className="font-medium truncate">{t.name}</span>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isChecked && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-rose-500/20 text-blue-300 border border-rose-500/40">
                             ✓ Operacional
                           </span>
                         )}
@@ -806,7 +800,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
               <div>
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 text-purple-400">
                   <Layers className="w-4 h-4" />
-                  <span>3. Nível Tático (Trackers)</span>
+                  <span>3. Tipos de Tarefas do Nível Tático</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Quais tipos de tarefas alimentam o <strong>Kanban Tático e Épicos</strong>
@@ -850,33 +844,30 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
               <button
                 type="button"
                 onClick={() => setTacTrackerFilterMode('all')}
-                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                  tacTrackerFilterMode === 'all'
-                    ? 'bg-slate-800 text-white font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
-                }`}
+                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${tacTrackerFilterMode === 'all'
+                  ? 'bg-slate-800 text-blue font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
+                  }`}
               >
                 Todos ({trackers.length})
               </button>
               <button
                 type="button"
                 onClick={() => setTacTrackerFilterMode('selected')}
-                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                  tacTrackerFilterMode === 'selected'
-                    ? 'bg-purple-950 border border-purple-700/80 text-purple-200 font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
-                }`}
+                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${tacTrackerFilterMode === 'selected'
+                  ? 'bg-purple-950 border border-purple-700/80 text-purple-200 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
+                  }`}
               >
                 Selecionados ({tacticalTrackerIds.length})
               </button>
               <button
                 type="button"
                 onClick={() => setTacTrackerFilterMode('unmapped')}
-                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                  tacTrackerFilterMode === 'unmapped'
-                    ? 'bg-amber-950 border border-amber-700/80 text-amber-200 font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
-                }`}
+                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${tacTrackerFilterMode === 'unmapped'
+                  ? 'bg-amber-950 border border-amber-700/80 text-amber-200 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
+                  }`}
               >
                 Livres ({trackers.filter((t) => !operationalTrackerIds.includes(t.id) && !tacticalTrackerIds.includes(t.id)).length})
               </button>
@@ -931,17 +922,16 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                     <label
                       key={t.id}
                       onClick={() => toggleTacticalTracker(t.id)}
-                      className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition-colors ${
-                        isChecked
-                          ? 'bg-purple-950/40 border-purple-800 text-white'
-                          : 'bg-slate-950/50 border-slate-800/80 text-slate-400 hover:text-slate-200'
-                      }`}
+                      className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition-colors ${isChecked
+                        ? 'bg-purple-950/40 border-purple-800 text-blue'
+                        : 'bg-slate-950/50 border-slate-800/80 text-slate-400 hover:text-slate-200'
+                        }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => {}}
+                          onChange={() => { }}
                           className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-700 bg-slate-950 cursor-pointer shrink-0"
                         />
                         <span className="font-medium truncate">{t.name}</span>
@@ -1073,22 +1063,20 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             <button
               type="button"
               onClick={() => setActiveMappingTab('operacional')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeMappingTab === 'operacional'
-                  ? 'bg-rose-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeMappingTab === 'operacional'
+                ? 'bg-rose-500 text-blue shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+                }`}
             >
               Nível Operacional
             </button>
             <button
               type="button"
               onClick={() => setActiveMappingTab('tatico')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeMappingTab === 'tatico'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeMappingTab === 'tatico'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+                }`}
             >
               Nível Tático
             </button>
@@ -1098,11 +1086,10 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         {/* Informative indicator of active mapping level */}
         <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
           <span>Configurando fluxo para:</span>
-          <span className={`font-semibold px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wider ${
-            activeMappingTab === 'operacional'
-              ? 'bg-rose-950/50 border-rose-800 text-rose-300'
-              : 'bg-purple-950/50 border-purple-800 text-purple-300'
-          }`}>
+          <span className={`font-semibold px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wider ${activeMappingTab === 'operacional'
+            ? 'bg-rose-950/50 border-rose-800 text-blue'
+            : 'bg-purple-950/50 border-purple-800 text-black'
+            }`}>
             {activeMappingTab === 'operacional' ? 'Tarefas Operacionais' : 'Tarefas Táticas'}
           </span>
         </div>
@@ -1146,17 +1133,16 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                   {/* Card Header */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-blue uppercase tracking-wider flex items-center gap-1.5">
                         <span>{col.label}</span>
                       </h4>
                       <p className="text-[10px] text-slate-400">{col.desc}</p>
                     </div>
                     {mappedIds.length > 0 ? (
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
-                        activeMappingTab === 'operacional'
-                          ? 'bg-rose-950/60 border-rose-800 text-rose-300'
-                          : 'bg-purple-950/60 border-purple-800 text-purple-300'
-                      }`}>
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${activeMappingTab === 'operacional'
+                        ? 'bg-rose-950/60 border-rose-800 text-rose-300'
+                        : 'bg-purple-950/60 border-purple-800 text-purple-300'
+                        }`}>
                         {mappedIds.length}
                       </span>
                     ) : (
@@ -1197,35 +1183,32 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'all' }))}
-                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                        mode === 'all'
-                          ? 'bg-slate-800 text-white font-semibold'
-                          : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
-                      }`}
+                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${mode === 'all'
+                        ? 'bg-slate-800 text-blue font-semibold'
+                        : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
+                        }`}
                     >
                       Todos ({statuses.length})
                     </button>
                     <button
                       type="button"
                       onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'selected' }))}
-                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                        mode === 'selected'
-                          ? activeMappingTab === 'operacional'
-                            ? 'bg-rose-950 border border-rose-700/80 text-rose-200 font-semibold'
-                            : 'bg-purple-950 border border-purple-700/80 text-purple-200 font-semibold'
-                          : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
-                      }`}
+                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${mode === 'selected'
+                        ? activeMappingTab === 'operacional'
+                          ? 'bg-rose-950 border border-rose-700/80 text-rose-200 font-semibold'
+                          : 'bg-purple-950 border border-purple-700/80 text-purple-200 font-semibold'
+                        : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
+                        }`}
                     >
                       Mapeados ({mappedIds.length})
                     </button>
                     <button
                       type="button"
                       onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'unmapped' }))}
-                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${
-                        mode === 'unmapped'
-                          ? 'bg-amber-950 border border-amber-700/80 text-amber-200 font-semibold'
-                          : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
-                      }`}
+                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${mode === 'unmapped'
+                        ? 'bg-amber-950 border border-amber-700/80 text-amber-200 font-semibold'
+                        : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
+                        }`}
                     >
                       Livres ({unmappedCount})
                     </button>
@@ -1245,7 +1228,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                               setColumnSearch((prev) => ({ ...prev, [col.key]: '' }));
                               setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'all' }));
                             }}
-                            className="text-[10px] text-rose-400 hover:text-rose-300 underline"
+                            className="text-[10px] text-blue-400 hover:text-blue-300 underline"
                           >
                             Limpar filtros
                           </button>
@@ -1261,19 +1244,18 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                           <label
                             key={s.id}
                             onClick={() => toggleStatusForColumn(col.key, s.id)}
-                            className={`p-2 rounded-lg border cursor-pointer flex items-center justify-between gap-2 text-xs transition-colors ${
-                              isChecked
-                                ? activeMappingTab === 'operacional'
-                                  ? 'bg-rose-950/40 border-rose-800 text-rose-200'
-                                  : 'bg-purple-950/40 border-purple-800 text-purple-200'
-                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                            }`}
+                            className={`p-2 rounded-lg border cursor-pointer flex items-center justify-between gap-2 text-xs transition-colors ${isChecked
+                              ? activeMappingTab === 'operacional'
+                                ? 'bg-rose-950/40 border-rose-800 text-blue-200'
+                                : 'bg-purple-950/40 border-purple-800 text-purple-200'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                              }`}
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <input
                                 type="checkbox"
                                 checked={isChecked}
-                                onChange={() => {}}
+                                onChange={() => { }}
                                 className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer shrink-0"
                               />
                               <span className="truncate">{s.name}</span>
@@ -1339,22 +1321,20 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             <button
               type="button"
               onClick={() => setActiveOrderTab('operacional')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeOrderTab === 'operacional'
-                  ? 'bg-rose-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeOrderTab === 'operacional'
+                ? 'bg-rose-500 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+                }`}
             >
               Kanban Operacional ({opConfigCols.length})
             </button>
             <button
               type="button"
               onClick={() => setActiveOrderTab('tatico')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeOrderTab === 'tatico'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeOrderTab === 'tatico'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+                }`}
             >
               Kanban Tático ({tacConfigCols.length})
             </button>
@@ -1383,7 +1363,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                           {idx + 1}
                         </span>
                         <span className={`w-2 h-2 rounded-full shrink-0 ${meta?.dot || 'bg-slate-500'}`} />
-                        <span className="font-semibold text-white truncate">{col.status.name}</span>
+                        <span className="font-semibold text-black truncate">{col.status.name}</span>
                         {meta && (
                           <span className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded border ${meta.chip}`}>
                             {meta.label}
@@ -1499,7 +1479,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3 pt-1">
           {(Object.keys(THEMES) as ThemeId[]).map((tId) => {
             const themeDef = THEMES[tId];
             const isSelected = theme === tId;
@@ -1511,11 +1491,10 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                   setTheme(tId);
                   applyTheme(tId);
                 }}
-                className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                  isSelected
-                    ? 'border-rose-500 bg-rose-950/20 ring-2 ring-rose-500/30'
-                    : 'border-slate-800 bg-slate-950/50 hover:border-slate-700'
-                }`}
+                className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${isSelected
+                  ? 'border-rose-500 bg-rose-950/20 ring-2 ring-rose-500/30'
+                  : 'border-slate-800 bg-slate-950/50 hover:border-slate-700'
+                  }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1">
@@ -1555,7 +1534,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         <button
           type="submit"
           disabled={isSaving}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold text-xs shadow-md shadow-rose-900/30 transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold text-xs shadow-md shadow-rose-900/30 transition-all disabled:opacity-50"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           <span>Salvar Alterações</span>

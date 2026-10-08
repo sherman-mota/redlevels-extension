@@ -179,11 +179,10 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
             {/* Priority */}
             <div className="flex items-center gap-1.5">
               <span className="text-slate-400 font-medium">Prioridade:</span>
-              <span className={`px-2 py-0.5 rounded font-medium ${
-                issue.priority?.name?.toLowerCase().includes('alta') || issue.priority?.name?.toLowerCase().includes('urgente')
-                  ? 'bg-red-950/70 text-red-300 border border-red-800/60'
-                  : 'bg-slate-800 text-slate-300'
-              }`}>
+              <span className={`px-2 py-0.5 rounded font-medium ${issue.priority?.name?.toLowerCase().includes('alta') || issue.priority?.name?.toLowerCase().includes('urgente')
+                ? 'bg-red-950/70 text-red-300 border border-red-800/60'
+                : 'bg-slate-800 text-slate-300'
+                }`}>
                 {issue.priority?.name || 'Normal'}
               </span>
             </div>
@@ -211,11 +210,10 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
         <div className="px-6 border-b border-slate-800 flex items-center gap-4 bg-slate-900/90 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('details')}
-            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'details'
-                ? 'border-rose-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'details'
+              ? 'border-rose-500 text-blue'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
           >
             <FileText className="w-3.5 h-3.5" />
             <span>Visão Geral</span>
@@ -223,11 +221,10 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('journals')}
-            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'journals'
-                ? 'border-rose-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'journals'
+              ? 'border-rose-500 text-blue'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Histórico & Notas</span>
@@ -240,11 +237,10 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('custom_fields')}
-            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'custom_fields'
-                ? 'border-rose-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'custom_fields'
+              ? 'border-rose-500 text-blue'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
           >
             <Tag className="w-3.5 h-3.5" />
             <span>Campos Personalizados</span>
