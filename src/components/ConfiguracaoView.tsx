@@ -64,7 +64,15 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
   const [tacticalTrackerIds, setTacticalTrackerIds] = useState<number[]>(config.tacticalTrackerIds);
   const [strategicCustomFieldId, setStrategicCustomFieldId] = useState<number | undefined>(config.strategicCustomFieldId);
   const [blockedCustomFieldId, setBlockedCustomFieldId] = useState<number | undefined>(config.blockedCustomFieldId);
+  const [blockedCustomFieldIds, setBlockedCustomFieldIds] = useState<number[]>(
+    config.blockedCustomFieldIds && config.blockedCustomFieldIds.length > 0
+      ? config.blockedCustomFieldIds
+      : config.blockedCustomFieldId ? [config.blockedCustomFieldId] : []
+  );
   const [blockedCustomFieldValueTrigger, setBlockedCustomFieldValueTrigger] = useState<string>(config.blockedCustomFieldValueTrigger || 'Sim');
+  const [strategicFieldSearch, setStrategicFieldSearch] = useState('');
+  const [blockedFieldSearch, setBlockedFieldSearch] = useState('');
+  const [blockedFieldFilterMode, setBlockedFieldFilterMode] = useState<'all' | 'selected'>('all');
 
   // Status mapping separated by operational and tactical
   const [operationalStatusMapping, setOperationalStatusMapping] = useState(
@@ -193,6 +201,22 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
     );
   }, [customFields]);
 
+  const filteredStrategicCustomFields = useMemo(() => {
+    if (!strategicFieldSearch.trim()) return sortedCustomFields;
+    const q = strategicFieldSearch.toLowerCase();
+    return sortedCustomFields.filter(
+      (cf) => cf.name.toLowerCase().includes(q) || String(cf.id).includes(q)
+    );
+  }, [sortedCustomFields, strategicFieldSearch]);
+
+  const filteredBlockedCustomFields = useMemo(() => {
+    if (!blockedFieldSearch.trim()) return sortedCustomFields;
+    const q = blockedFieldSearch.toLowerCase();
+    return sortedCustomFields.filter(
+      (cf) => cf.name.toLowerCase().includes(q) || String(cf.id).includes(q)
+    );
+  }, [sortedCustomFields, blockedFieldSearch]);
+
   // Handle Tracker Toggle
   const toggleOperationalTracker = (id: number) => {
     setOperationalTrackerIds((prev) =>
@@ -204,6 +228,14 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
     setTacticalTrackerIds((prev) =>
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
     );
+  };
+
+  const toggleBlockedCustomField = (id: number) => {
+    setBlockedCustomFieldIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id];
+      setBlockedCustomFieldId(next[0]);
+      return next;
+    });
   };
 
   // Handle Status Mapping Toggle per operational or tactical
@@ -265,7 +297,8 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         operationalTrackerIds,
         tacticalTrackerIds,
         strategicCustomFieldId,
-        blockedCustomFieldId,
+        blockedCustomFieldId: blockedCustomFieldIds[0] || blockedCustomFieldId,
+        blockedCustomFieldIds,
         blockedCustomFieldValueTrigger,
         statusMapping: operationalStatusMapping,
         operationalStatusMapping,
@@ -314,7 +347,13 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
       if (imported.operationalTrackerIds !== undefined) setOperationalTrackerIds(imported.operationalTrackerIds);
       if (imported.tacticalTrackerIds !== undefined) setTacticalTrackerIds(imported.tacticalTrackerIds);
       if (imported.strategicCustomFieldId !== undefined) setStrategicCustomFieldId(imported.strategicCustomFieldId);
-      if (imported.blockedCustomFieldId !== undefined) setBlockedCustomFieldId(imported.blockedCustomFieldId);
+      if (imported.blockedCustomFieldIds !== undefined) {
+        setBlockedCustomFieldIds(imported.blockedCustomFieldIds);
+        setBlockedCustomFieldId(imported.blockedCustomFieldIds[0]);
+      } else if (imported.blockedCustomFieldId !== undefined) {
+        setBlockedCustomFieldId(imported.blockedCustomFieldId);
+        setBlockedCustomFieldIds(imported.blockedCustomFieldId ? [imported.blockedCustomFieldId] : []);
+      }
       if (imported.blockedCustomFieldValueTrigger !== undefined) {
         setBlockedCustomFieldValueTrigger(imported.blockedCustomFieldValueTrigger);
       }
@@ -408,7 +447,8 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         operationalTrackerIds,
         tacticalTrackerIds,
         strategicCustomFieldId,
-        blockedCustomFieldId,
+        blockedCustomFieldId: blockedCustomFieldIds[0] || blockedCustomFieldId,
+        blockedCustomFieldIds,
         blockedCustomFieldValueTrigger,
         statusMapping: operationalStatusMapping,
         operationalStatusMapping,
@@ -990,57 +1030,191 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             </p>
           </div>
 
-          <select
-            value={strategicCustomFieldId || ''}
-            onChange={(e) =>
-              setStrategicCustomFieldId(e.target.value ? Number(e.target.value) : undefined)
-            }
-            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-white focus:outline-none focus:border-rose-500"
-          >
-            <option value="">Nenhum campo selecionado</option>
-            {sortedCustomFields.map((cf) => (
-              <option key={cf.id} value={cf.id}>
-                {cf.name} (ID #{cf.id})
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="space-y-2.5">
+            {/* Search filter for strategic custom fields */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={strategicFieldSearch}
+                onChange={(e) => setStrategicFieldSearch(e.target.value)}
+                placeholder="Buscar campo personalizado..."
+                className="w-full pl-8 pr-7 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
+              />
+              {strategicFieldSearch && (
+                <button
+                  type="button"
+                  onClick={() => setStrategicFieldSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  title="Limpar busca"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-        {/* Custom Field Bloqueio */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-3.5">
-          <div>
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 text-rose-400">
-              <ShieldAlert className="w-4 h-4" />
-              <span>5. Campo de Bloqueio (Item Pausado)</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Qual campo personalizado dos tipos de tarefa representa um impedimento
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <select
-              value={blockedCustomFieldId || ''}
+              value={strategicCustomFieldId || ''}
               onChange={(e) =>
-                setBlockedCustomFieldId(e.target.value ? Number(e.target.value) : undefined)
+                setStrategicCustomFieldId(e.target.value ? Number(e.target.value) : undefined)
               }
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-white focus:outline-none focus:border-rose-500"
             >
               <option value="">Nenhum campo selecionado</option>
-              {sortedCustomFields.map((cf) => (
+              {filteredStrategicCustomFields.map((cf) => (
                 <option key={cf.id} value={cf.id}>
                   {cf.name} (ID #{cf.id})
                 </option>
               ))}
             </select>
 
-            <input
-              type="text"
-              value={blockedCustomFieldValueTrigger}
-              onChange={(e) => setBlockedCustomFieldValueTrigger(e.target.value)}
-              placeholder="Valor ativador (ex: Sim, 1, true)"
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
-            />
+            {strategicCustomFieldId ? (
+              <p className="text-[11px] text-emerald-400 flex items-center gap-1.5 pt-0.5">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  Campo ativo: <strong>{customFields.find((c) => c.id === strategicCustomFieldId)?.name || `#${strategicCustomFieldId}`}</strong> (ID #{strategicCustomFieldId})
+                </span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-500">
+                Nenhum campo associado à iniciativa estratégica no momento.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Custom Field Bloqueio */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-3.5 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 text-rose-400">
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>5. Campos de Bloqueio (Item Pausado)</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Campos personalizados que indicam impedimento (permite múltiplos para diferentes trackers)
+                </p>
+              </div>
+              {blockedCustomFieldIds.length > 0 ? (
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border bg-rose-950/60 border-rose-800 text-rose-300">
+                  {blockedCustomFieldIds.length} selecionado{blockedCustomFieldIds.length > 1 ? 's' : ''}
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-500">
+                  0
+                </span>
+              )}
+            </div>
+
+            <div>
+              <label className="text-[11px] text-slate-300 font-medium block mb-1">
+                Valor ativador do bloqueio (ex: Sim, 1, true, Bloqueado):
+              </label>
+              <input
+                type="text"
+                value={blockedCustomFieldValueTrigger}
+                onChange={(e) => setBlockedCustomFieldValueTrigger(e.target.value)}
+                placeholder="Ex: Sim"
+                className="w-full px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            {/* Busca de campos de bloqueio */}
+            <div className="relative">
+              <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                value={blockedFieldSearch}
+                onChange={(e) => setBlockedFieldSearch(e.target.value)}
+                placeholder="Filtrar campos de bloqueio..."
+                className="w-full pl-7 pr-6 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
+              />
+              {blockedFieldSearch && (
+                <button
+                  type="button"
+                  onClick={() => setBlockedFieldSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  title="Limpar busca"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Mode toggle pills */}
+            <div className="flex items-center gap-1 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setBlockedFieldFilterMode('all')}
+                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${blockedFieldFilterMode === 'all'
+                  ? 'bg-slate-800 text-blue font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
+                  }`}
+              >
+                Todos ({customFields.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setBlockedFieldFilterMode('selected')}
+                className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${blockedFieldFilterMode === 'selected'
+                  ? 'bg-rose-950 border border-rose-700/80 text-rose-200 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
+                  }`}
+              >
+                Selecionados ({blockedCustomFieldIds.length})
+              </button>
+            </div>
+
+            {/* Custom fields checkboxes */}
+            <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto pr-0.5">
+              {customFields.length === 0 ? (
+                <p className="text-xs text-slate-500 italic p-2">Conecte-se ao Redmine para carregar os campos personalizados.</p>
+              ) : (() => {
+                const list = filteredBlockedCustomFields.filter((cf) => {
+                  if (blockedFieldFilterMode === 'selected') {
+                    return blockedCustomFieldIds.includes(cf.id);
+                  }
+                  return true;
+                });
+
+                if (list.length === 0) {
+                  return (
+                    <div className="p-3 text-center rounded-xl bg-slate-950/40 border border-slate-800/60">
+                      <p className="text-[11px] text-slate-500 italic">Nenhum campo encontrado.</p>
+                    </div>
+                  );
+                }
+
+                return list.map((cf) => {
+                  const isChecked = blockedCustomFieldIds.includes(cf.id);
+                  return (
+                    <label
+                      key={cf.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleBlockedCustomField(cf.id);
+                      }}
+                      className={`flex items-center justify-between p-2 rounded-xl border text-xs cursor-pointer transition-colors ${isChecked
+                        ? 'bg-rose-950/40 border-rose-800/80 text-white'
+                        : 'bg-slate-950/40 border-slate-800/60 text-slate-300 hover:border-slate-700'
+                        }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer pointer-events-none"
+                        />
+                        <span className="font-medium truncate">{cf.name}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400 shrink-0 ml-2">ID #{cf.id}</span>
+                    </label>
+                  );
+                });
+              })()}
+            </div>
           </div>
         </div>
       </div>
@@ -1520,8 +1694,16 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         </div>
       </div>
 
-      {/* Reset sandbox data */}
-      <div className="pt-2 flex items-center justify-between">
+      {/* Bottom Success Banner */}
+      {savedSuccess && (
+        <div className="p-3.5 rounded-xl bg-emerald-950/90 border border-emerald-700/80 text-emerald-200 text-xs flex items-center gap-2 animate-fadeIn shadow-lg">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="font-semibold">Configurações salvas e aplicadas com sucesso em toda a interface!</span>
+        </div>
+      )}
+
+      {/* Reset sandbox data and bottom save */}
+      <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
         <button
           type="button"
           onClick={onResetDemoData}
@@ -1531,14 +1713,25 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
           <span>Restaurar dados de demonstração iniciais</span>
         </button>
 
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold text-xs shadow-md shadow-rose-900/30 transition-all disabled:opacity-50"
-        >
-          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          <span>Salvar Alterações</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {savedSuccess && (
+            <span className="text-xs text-emerald-400 font-medium flex items-center gap-1.5 animate-fadeIn">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Salvo com sucesso!
+            </span>
+          )}
+          <button
+            type="submit"
+            disabled={isSaving}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-xs shadow-md transition-all disabled:opacity-50 ${
+              savedSuccess
+                ? 'bg-emerald-600 text-white shadow-emerald-900/30 ring-2 ring-emerald-400/40'
+                : 'bg-gradient-to-r from-red-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-rose-900/30'
+            }`}
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : savedSuccess ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            <span>{savedSuccess ? 'Configurações Salvas!' : 'Salvar Alterações'}</span>
+          </button>
+        </div>
       </div>
     </form>
   );

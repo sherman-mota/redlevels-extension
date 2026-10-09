@@ -8,6 +8,7 @@ import { KanbanTatico } from './components/KanbanTatico';
 import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
 import { InboxView } from './components/InboxView';
 import { ConfiguracaoView } from './components/ConfiguracaoView';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 import {
   RedlevelsConfig,
@@ -231,9 +232,10 @@ export default function App() {
     } else if (
       updates.operationalTrackerIds ||
       updates.tacticalTrackerIds ||
-      updates.blockedCustomFieldId ||
-      updates.strategicCustomFieldId ||
-      updates.blockedCustomFieldValueTrigger
+      updates.blockedCustomFieldId !== undefined ||
+      updates.blockedCustomFieldIds !== undefined ||
+      updates.strategicCustomFieldId !== undefined ||
+      updates.blockedCustomFieldValueTrigger !== undefined
     ) {
       setIssues((prev) => prev.map((i) => processIssueWithConfig(i, updated)));
     }
@@ -278,6 +280,20 @@ export default function App() {
     loadData();
   };
 
+  // Background non-intrusive refresh to sync related issues, parents, and server hooks
+  const refreshIssuesSilently = async () => {
+    try {
+      const issRes = await client.getWorkspaceIssues();
+      if (issRes.success && issRes.data) {
+        const linked = linkChildren(issRes.data);
+        const processed = linked.map((i) => processIssueWithConfig(i, config));
+        setIssues(processed);
+      }
+    } catch (e) {
+      console.warn('Erro ao atualizar tarefas em segundo plano:', e);
+    }
+  };
+
   // Move issue (Kanban Drag & Drop) -> Requisito: PUT /issues/[id].json
   const handleMoveIssue = async (issueId: number, targetStatusId: number) => {
     const previousIssues = [...issues];
@@ -301,16 +317,26 @@ export default function App() {
 
     try {
       const res = await client.updateIssue(issueId, { status_id: targetStatusId });
-      if (!res.success) {
+
+      if (res.data) {
+        // Authoritative issue from Redmine
+        const fresh = processIssueWithConfig(res.data, config);
+        setIssues((prev) => prev.map((iss) => (iss.id === issueId ? fresh : iss)));
+        if (selectedIssue && selectedIssue.id === issueId) {
+          setSelectedIssue(fresh);
+        }
+
+        if (res.data.status?.id !== targetStatusId) {
+          alert(
+            `A transição para "${statusObj?.name || targetStatusId}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`
+          );
+        } else if (res.success) {
+          refreshIssuesSilently();
+        }
+      } else if (!res.success) {
         // Rollback
         setIssues(previousIssues);
         alert(`Falha ao atualizar status no Redmine: ${res.error}`);
-      } else if (res.data && res.data.status?.id !== targetStatusId) {
-        // Redmine silently ignored because workflow didn't permit this transition
-        setIssues(previousIssues);
-        alert(
-          `A transição para "${statusObj?.name}" não é permitida pelo fluxo de trabalho do seu perfil no Redmine.`
-        );
       }
     } catch (e: any) {
       setIssues(previousIssues);
@@ -324,59 +350,163 @@ export default function App() {
     }
   };
 
-  // Update status with notes
+  // Update status with notes -> Requisito: O Kanban e modal sempre devem refletir o status real do Redmine
   const handleUpdateStatus = async (issueId: number, statusId: number, notes?: string) => {
-    const res = await client.updateIssue(issueId, { status_id: statusId, notes });
-    if (res.success) {
-      const statusObj = statuses.find((s) => s.id === statusId);
-      setIssues((prev) =>
-        prev.map((iss) => {
-          if (iss.id === issueId) {
-            const updated = {
-              ...iss,
-              status: statusObj || iss.status,
-              updated_on: new Date().toISOString(),
-            };
-            if (notes && currentUser) {
-              const newJournal = {
-                id: Date.now(),
-                user: { id: currentUser.id, name: `${currentUser.firstname} ${currentUser.lastname}` },
-                created_on: new Date().toISOString(),
-                notes,
-              };
-              updated.journals = [...(updated.journals || []), newJournal];
-            }
-            return updated;
-          }
-          return iss;
-        })
-      );
+    const previousIssues = [...issues];
+    const previousSelected = selectedIssue;
+    const statusObj = statuses.find((s) => s.id === statusId);
 
-      if (selectedIssue && selectedIssue.id === issueId) {
-        setSelectedIssue((prev) => (prev ? { ...prev, status: statusObj || prev.status } : null));
+    // Optimistic UI update
+    setIssues((prev) =>
+      prev.map((iss) => {
+        if (iss.id === issueId) {
+          const updated = {
+            ...iss,
+            status: statusObj || iss.status,
+            updated_on: new Date().toISOString(),
+          };
+          if (notes && currentUser) {
+            const newJournal = {
+              id: Date.now(),
+              user: { id: currentUser.id, name: `${currentUser.firstname} ${currentUser.lastname}` },
+              created_on: new Date().toISOString(),
+              notes,
+            };
+            updated.journals = [...(updated.journals || []), newJournal];
+          }
+          return updated;
+        }
+        return iss;
+      })
+    );
+
+    if (selectedIssue && selectedIssue.id === issueId) {
+      setSelectedIssue((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: statusObj || prev.status,
+              journals:
+                notes && currentUser
+                  ? [
+                      ...(prev.journals || []),
+                      {
+                        id: Date.now(),
+                        user: { id: currentUser.id, name: `${currentUser.firstname} ${currentUser.lastname}` },
+                        created_on: new Date().toISOString(),
+                        notes,
+                      },
+                    ]
+                  : prev.journals,
+            }
+          : null
+      );
+    }
+
+    setPendingIssueIds((prev) => new Set(prev).add(issueId));
+
+    try {
+      const res = await client.updateIssue(issueId, { status_id: statusId, notes });
+
+      if (res.data) {
+        // Authoritative issue from Redmine
+        const fresh = processIssueWithConfig(res.data, config);
+        setIssues((prev) => prev.map((iss) => (iss.id === issueId ? fresh : iss)));
+        if (selectedIssue && selectedIssue.id === issueId) {
+          setSelectedIssue(fresh);
+        }
+
+        if (res.data.status?.id !== statusId) {
+          const detailMsg = res.error ? ` (${res.error})` : '';
+          alert(
+            `A transição para "${statusObj?.name || statusId}" não foi permitida pelas regras de fluxo de trabalho do Redmine${detailMsg}. O status atual da tarefa permanece como "${res.data.status?.name}".`
+          );
+        } else if (res.success) {
+          refreshIssuesSilently();
+        }
+      } else if (!res.success) {
+        // Rollback
+        setIssues(previousIssues);
+        if (previousSelected && previousSelected.id === issueId) {
+          setSelectedIssue(previousSelected);
+        }
+        alert(`Não foi possível salvar alteração no Redmine: ${res.error}`);
+      } else {
+        refreshIssuesSilently();
       }
+    } catch (e: any) {
+      setIssues(previousIssues);
+      if (previousSelected && previousSelected.id === issueId) {
+        setSelectedIssue(previousSelected);
+      }
+      alert(`Erro na requisição ao Redmine: ${e.message}`);
+    } finally {
+      setPendingIssueIds((prev) => {
+        const next = new Set(prev);
+        next.delete(issueId);
+        return next;
+      });
+    }
+  };
+
+  // Select issue and fetch fresh details in background (so allowed_statuses, latest status & journals are always up to date)
+  const handleSelectIssue = async (issue: RedmineIssue) => {
+    setSelectedIssue(issue);
+    try {
+      const res = await client.getIssueDetail(issue.id);
+      if (res.success && res.data) {
+        const fresh = processIssueWithConfig(res.data, config);
+        setSelectedIssue(fresh);
+        setIssues((prev) => prev.map((i) => (i.id === issue.id ? fresh : i)));
+      }
+    } catch (e) {
+      console.warn('Erro ao atualizar detalhes da tarefa:', e);
+    }
+  };
+
+  const handleSelectIssueById = async (id: number) => {
+    const found = issues.find((i) => i.id === id);
+    if (found) {
+      handleSelectIssue(found);
     } else {
-      alert(`Não foi possível salvar alteração: ${res.error}`);
+      try {
+        const res = await client.getIssueDetail(id);
+        if (res.success && res.data) {
+          const fresh = processIssueWithConfig(res.data, config);
+          setSelectedIssue(fresh);
+        }
+      } catch (e) {
+        console.warn('Erro ao buscar tarefa pai:', e);
+      }
     }
   };
 
   // Toggle blocked
   const handleToggleBlocked = async (issueId: number, currentlyBlocked: boolean) => {
-    if (!config.blockedCustomFieldId) {
+    const blockedIds = config.blockedCustomFieldIds && config.blockedCustomFieldIds.length > 0
+      ? config.blockedCustomFieldIds
+      : config.blockedCustomFieldId
+        ? [config.blockedCustomFieldId]
+        : [];
+
+    if (blockedIds.length === 0) {
       alert('Configure primeiro qual campo personalizado representa o Bloqueio na aba Configurações.');
       return;
     }
 
+    const currentIssue = issues.find((i) => i.id === issueId);
+    const targetFieldId = currentIssue?.custom_fields?.find((cf) => blockedIds.includes(cf.id))?.id || blockedIds[0];
+
     const nextValue = currentlyBlocked ? 'Não' : (config.blockedCustomFieldValueTrigger || 'Sim');
     const res = await client.updateIssue(issueId, {
-      custom_fields: [{ id: config.blockedCustomFieldId, value: nextValue }],
+      custom_fields: [{ id: targetFieldId, value: nextValue }],
     });
     if (res.success) {
       setIssues((prev) =>
         prev.map((iss) => {
           if (iss.id === issueId) {
             const updatedFields = (iss.custom_fields || []).map((cf) =>
-              cf.id === config.blockedCustomFieldId ? { ...cf, value: nextValue } : cf
+              cf.id === targetFieldId ? { ...cf, value: nextValue } : cf
             );
             return processIssueWithConfig({ ...iss, custom_fields: updatedFields }, config);
           }
@@ -512,7 +642,7 @@ export default function App() {
                 inboxIds={inboxIds}
                 currentUser={currentUser}
                 statuses={statuses}
-                onSelectIssue={setSelectedIssue}
+                onSelectIssue={handleSelectIssue}
                 onUpdateStatus={handleUpdateStatus}
               />
             )}
@@ -529,7 +659,7 @@ export default function App() {
                 onUpdateColumnOrder={(newOrder) =>
                   handleUpdateConfig({ operationalColumnOrder: newOrder })
                 }
-                onSelectIssue={setSelectedIssue}
+                onSelectIssue={handleSelectIssue}
                 onMoveIssue={handleMoveIssue}
                 isLoading={isRefreshing}
               />
@@ -549,7 +679,7 @@ export default function App() {
                 onUpdateColumnOrder={(newOrder) =>
                   handleUpdateConfig({ tacticalColumnOrder: newOrder })
                 }
-                onSelectIssue={setSelectedIssue}
+                onSelectIssue={handleSelectIssue}
                 onMoveIssue={handleMoveIssue}
                 isLoading={isRefreshing}
               />
@@ -563,7 +693,7 @@ export default function App() {
                 tacticalTrackerIds={config.tacticalTrackerIds}
                 operationalTrackerIds={config.operationalTrackerIds}
                 strategicCustomFieldId={config.strategicCustomFieldId}
-                onSelectIssue={setSelectedIssue}
+                onSelectIssue={handleSelectIssue}
                 onUpdateStatus={handleUpdateStatus}
               />
             )}
@@ -603,19 +733,21 @@ export default function App() {
       />
 
       {/* Issue Detail Modal */}
-      <IssueDetailModal
-        issue={selectedIssue}
-        isOpen={!!selectedIssue}
-        onClose={() => setSelectedIssue(null)}
-        redmineUrl={config.redmineUrl}
-        statuses={statuses}
-        onUpdateStatus={handleUpdateStatus}
-        onToggleBlocked={handleToggleBlocked}
-        onSelectIssueById={(id) => {
-          const found = issues.find((i) => i.id === id);
-          if (found) setSelectedIssue(found);
-        }}
-      />
+      <ErrorBoundary
+        fallbackTitle="Não foi possível exibir o detalhamento desta tarefa"
+        onReset={() => setSelectedIssue(null)}
+      >
+        <IssueDetailModal
+          issue={selectedIssue}
+          isOpen={!!selectedIssue}
+          onClose={() => setSelectedIssue(null)}
+          redmineUrl={config.redmineUrl}
+          statuses={statuses}
+          onUpdateStatus={handleUpdateStatus}
+          onToggleBlocked={handleToggleBlocked}
+          onSelectIssueById={handleSelectIssueById}
+        />
+      </ErrorBoundary>
     </div>
   );
 }

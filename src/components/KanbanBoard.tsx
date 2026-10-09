@@ -79,6 +79,8 @@ interface KanbanBoardProps {
   onSelectIssue: (issue: RedmineIssue) => void;
   renderCard: (issue: RedmineIssue) => React.ReactNode;
   emptyColumnLabel?: string;
+  collapsedLanes?: Record<string, boolean>;
+  onToggleLaneCollapse?: (laneKey: string) => void;
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -92,12 +94,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onSelectIssue,
   renderCard,
   emptyColumnLabel = 'Nenhuma tarefa',
+  collapsedLanes: controlledCollapsedLanes,
+  onToggleLaneCollapse,
 }) => {
   const [dragged, setDragged] = useState<{ id: number; statusId: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  const [collapsedLanes, setCollapsedLanes] = useState<Record<string, boolean>>({});
+  const [internalCollapsedLanes, setInternalCollapsedLanes] = useState<Record<string, boolean>>({});
   const [expandedCols, setExpandedCols] = useState<Record<string, boolean>>({});
   const laneRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+
+  const effectiveCollapsedLanes = controlledCollapsedLanes ?? internalCollapsedLanes;
+  const toggleLane = (laneKey: string) => {
+    if (onToggleLaneCollapse) {
+      onToggleLaneCollapse(laneKey);
+    } else {
+      setInternalCollapsedLanes((p) => ({ ...p, [laneKey]: !p[laneKey] }));
+    }
+  };
 
   const colWidthClass =
     density === 'compact' ? 'w-[224px]' : density === 'wide' ? 'w-[320px]' : 'w-[272px]';
@@ -131,7 +144,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   return (
     <div className="space-y-4">
       {lanes.map((lane) => {
-        const collapsed = !!collapsedLanes[lane.key];
+        const collapsed = !!effectiveCollapsedLanes[lane.key];
         return (
           <section
             key={lane.key}
@@ -141,7 +154,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               <div className="w-full flex items-center justify-between px-4 pt-3 pb-1 border-b border-transparent">
                 <button
                   type="button"
-                  onClick={() => setCollapsedLanes((p) => ({ ...p, [lane.key]: !collapsed }))}
+                  onClick={() => toggleLane(lane.key)}
                   className="flex items-center gap-2 text-left group min-w-0"
                   aria-expanded={!collapsed}
                 >

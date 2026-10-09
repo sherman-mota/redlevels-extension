@@ -7,6 +7,7 @@ import {
   Search,
   X,
   Target,
+  ChevronsUpDown,
 } from 'lucide-react';
 import {
   RedmineIssue,
@@ -17,6 +18,7 @@ import {
   StatusMapping,
 } from '../types/redmine';
 import { KanbanBoard, buildColumns, BoardLane } from './KanbanBoard';
+import { SearchableMultiSelect } from './SearchableMultiSelect';
 
 interface KanbanTaticoProps {
   issues: RedmineIssue[];
@@ -52,20 +54,36 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
 }) => {
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState<number | 'all'>('all');
-  const [selectedAssignee, setSelectedAssignee] = useState<string | 'all'>('all');
+  const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
   const [onlyBlocked, setOnlyBlocked] = useState(false);
   const [selectedCustomFieldFilter, setSelectedCustomFieldFilter] = useState<{ fieldId: number; value: string } | null>(null);
   const [groupByStrategic, setGroupByStrategic] = useState(true);
+  const [collapsedLanes, setCollapsedLanes] = useState<Record<string, boolean>>({});
   const [columnDensity, setColumnDensity] = useState<'compact' | 'normal' | 'wide'>('normal');
 
-  // Sorted projects alphabetically
+  // Sorted projects alphabetically (including projects present in issues)
   const sortedProjects = useMemo(() => {
-    return [...projects].sort((a, b) =>
+    const map = new Map<number, RedmineProject>();
+    projects.forEach((p) => map.set(p.id, p));
+    issues.forEach((i) => {
+      if (i.project && !map.has(i.project.id)) {
+        map.set(i.project.id, { id: i.project.id, name: i.project.name, identifier: '' });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) =>
       a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
     );
-  }, [projects]);
+  }, [projects, issues]);
+
+  const projectOptions = useMemo(() => {
+    return sortedProjects.map((p) => ({
+      id: p.id,
+      label: p.name,
+      badge: `#${p.id}`,
+    }));
+  }, [sortedProjects]);
 
   // Extract distinct assignees
   const assignees = useMemo(() => {
@@ -75,8 +93,15 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         map.set(i.assigned_to.name, i.assigned_to.name);
       }
     });
-    return Array.from(map.values()).sort();
+    return Array.from(map.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [issues]);
+
+  const assigneeOptions = useMemo(() => {
+    return assignees.map((a) => ({
+      id: a,
+      label: a,
+    }));
+  }, [assignees]);
 
   // Extract custom fields values for tactical issues filter
   const filterableCustomField = useMemo(() => {
@@ -116,14 +141,20 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         if (!matchesSubject && !matchesId && !matchesStrategic) return false;
       }
 
-      // Project filter
-      if (selectedProjectId !== 'all' && issue.project.id !== selectedProjectId) {
+      // Multi-project filter
+      if (
+        selectedProjectIds.length > 0 &&
+        !selectedProjectIds.some((pId) => String(pId) === String(issue.project.id))
+      ) {
         return false;
       }
 
-      // Assignee filter
-      if (selectedAssignee !== 'all' && issue.assigned_to?.name !== selectedAssignee) {
-        return false;
+      // Multi-assignee filter
+      if (selectedAssignees.length > 0) {
+        const assigneeName = issue.assigned_to?.name;
+        if (!assigneeName || !selectedAssignees.includes(assigneeName)) {
+          return false;
+        }
       }
 
       // Tracker filter
@@ -150,8 +181,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     issues,
     tacticalTrackerIds,
     searchQuery,
-    selectedProjectId,
-    selectedAssignee,
+    selectedProjectIds,
+    selectedAssignees,
     selectedTrackerId,
     onlyBlocked,
     selectedCustomFieldFilter,
@@ -222,18 +253,42 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     }));
   }, [groupByStrategic, tacticalIssues]);
 
+  const handleToggleLaneCollapse = (laneKey: string) => {
+    setCollapsedLanes((prev) => ({
+      ...prev,
+      [laneKey]: !prev[laneKey],
+    }));
+  };
+
+  const allLanesCollapsed = useMemo(() => {
+    if (lanes.length <= 1) return false;
+    return lanes.every((l) => Boolean(collapsedLanes[l.key]));
+  }, [lanes, collapsedLanes]);
+
+  const toggleAllLanes = () => {
+    if (allLanesCollapsed) {
+      setCollapsedLanes({});
+    } else {
+      const next: Record<string, boolean> = {};
+      lanes.forEach((l) => {
+        next[l.key] = true;
+      });
+      setCollapsedLanes(next);
+    }
+  };
+
   const clearAllFilters = () => {
     setSearchQuery('');
-    setSelectedProjectId('all');
-    setSelectedAssignee('all');
+    setSelectedProjectIds([]);
+    setSelectedAssignees([]);
     setSelectedTrackerId('all');
     setOnlyBlocked(false);
     setSelectedCustomFieldFilter(null);
   };
 
   const activeFiltersCount =
-    (selectedProjectId !== 'all' ? 1 : 0) +
-    (selectedAssignee !== 'all' ? 1 : 0) +
+    (selectedProjectIds.length > 0 ? 1 : 0) +
+    (selectedAssignees.length > 0 ? 1 : 0) +
     (selectedTrackerId !== 'all' ? 1 : 0) +
     (onlyBlocked ? 1 : 0) +
     (selectedCustomFieldFilter ? 1 : 0) +
@@ -242,7 +297,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   return (
     <div className="space-y-4">
       {/* Top Banner & Control Bar */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
+      <div className="relative z-30 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
@@ -307,6 +362,19 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
               />
               <span className="font-medium">Agrupar por Iniciativa Estratégica</span>
             </label>
+
+            {/* Collapse/Expand All Button when grouped */}
+            {lanes.length > 1 && (
+              <button
+                type="button"
+                onClick={toggleAllLanes}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 hover:text-white transition-all shadow-sm"
+                title={allLanesCollapsed ? 'Expandir todos os grupos' : 'Colapsar todos os grupos'}
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5 text-purple-400" />
+                <span>{allLanesCollapsed ? 'Expandir Todos' : 'Colapsar Todos'}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -324,38 +392,28 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
             />
           </div>
 
-          {/* Project Filter (Alphabetically Sorted) */}
+          {/* Searchable Multi-Select Project Filter */}
           <div>
-            <select
-              value={selectedProjectId}
-              onChange={(e) =>
-                setSelectedProjectId(e.target.value === 'all' ? 'all' : Number(e.target.value))
-              }
-              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
-            >
-              <option value="all">Todos os Projetos ({sortedProjects.length})</option>
-              {sortedProjects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <SearchableMultiSelect
+              options={projectOptions}
+              selectedValues={selectedProjectIds}
+              onChange={(vals) => setSelectedProjectIds(vals as number[])}
+              placeholder="Projetos"
+              searchPlaceholder="Buscar projetos..."
+              allLabel="Todos os Projetos"
+            />
           </div>
 
-          {/* Assignee Filter */}
+          {/* Searchable Multi-Select Assignee Filter */}
           <div>
-            <select
-              value={selectedAssignee}
-              onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
-            >
-              <option value="all">Todos os Responsáveis</option>
-              {assignees.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+            <SearchableMultiSelect
+              options={assigneeOptions}
+              selectedValues={selectedAssignees}
+              onChange={(vals) => setSelectedAssignees(vals as string[])}
+              placeholder="Responsáveis"
+              searchPlaceholder="Buscar responsáveis..."
+              allLabel="Todos os Responsáveis"
+            />
           </div>
 
           {/* Tracker Filter */}
@@ -438,6 +496,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         accent="purple"
         density={columnDensity}
         pendingIssueIds={pendingIssueIds}
+        collapsedLanes={collapsedLanes}
+        onToggleLaneCollapse={handleToggleLaneCollapse}
         onMoveIssue={onMoveIssue}
         onMoveColumn={onUpdateColumnOrder ? handleMoveColumn : undefined}
         onSelectIssue={onSelectIssue}

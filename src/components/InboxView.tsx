@@ -75,13 +75,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
     return currentList.filter((issue) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesSubject = issue.subject.toLowerCase().includes(q);
+        const matchesSubject = (issue.subject || '').toLowerCase().includes(q);
         const matchesId = String(issue.id).includes(q);
-        const matchesProject = issue.project.name.toLowerCase().includes(q);
+        const matchesProject = (issue.project?.name || '').toLowerCase().includes(q);
         if (!matchesSubject && !matchesId && !matchesProject) return false;
       }
 
-      if (statusFilter !== 'all' && issue.status.id !== statusFilter) {
+      if (statusFilter !== 'all' && issue.status?.id !== statusFilter) {
         return false;
       }
 
@@ -96,7 +96,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   // Quick metrics
   const blockedCount = currentList.filter((i) => i.is_blocked).length;
   const inProgressCount = currentList.filter((i) =>
-    i.status.name.toLowerCase().includes('andamento') || i.status.name.toLowerCase().includes('progresso')
+    (i.status?.name || '').toLowerCase().includes('andamento') || (i.status?.name || '').toLowerCase().includes('progresso')
   ).length;
 
   return (
@@ -228,15 +228,15 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 <div className="space-y-1 flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] font-semibold text-slate-300 bg-slate-800 px-1.5 py-0.2 rounded">
-                      {issue.tracker.name}
+                      {issue.tracker?.name || 'Tarefa'}
                     </span>
                     <span className="text-xs text-slate-400 flex items-center gap-1 truncate">
                       <FolderGit2 className="w-3 h-3 text-slate-500 shrink-0" />
-                      <span className="truncate">{issue.project.name}</span>
+                      <span className="truncate">{issue.project?.name || ''}</span>
                     </span>
                     {issue.parent && (
                       <span className="font-mono text-[10px] text-blue-300 bg-blue-950/60 px-1.5 py-0.2 rounded">
-                        Pai: #{issue.parent.id}
+                        Pai: #{typeof issue.parent === 'object' ? issue.parent.id : issue.parent}
                       </span>
                     )}
                   </div>
@@ -265,22 +265,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   </div>
                 )}
 
-                {/* Quick Status Changer */}
-                <select
-                  value={issue.status.id}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    onUpdateStatus(issue.id, Number(e.target.value));
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 focus:outline-none focus:border-rose-500 cursor-pointer"
-                >
-                  {statuses.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+
 
                 <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-white" />
               </div>

@@ -4,12 +4,13 @@ import {
   AlertTriangle,
   FolderGit2,
   User,
-  Filter,
   Search,
   X,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping } from '../types/redmine';
 import { KanbanBoard, buildColumns, BoardLane } from './KanbanBoard';
+import { SearchableMultiSelect } from './SearchableMultiSelect';
 
 interface KanbanOperacionalProps {
   issues: RedmineIssue[];
@@ -41,20 +42,36 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
 }) => {
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState<number | 'all'>('all');
-  const [selectedAssignee, setSelectedAssignee] = useState<string | 'all'>('all');
+  const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
   const [onlyBlocked, setOnlyBlocked] = useState(false);
   const [filterParentId, setFilterParentId] = useState<string>('');
-  const [groupByProject, setGroupByProject] = useState(false);
+  const [groupBy, setGroupBy] = useState<'none' | 'project' | 'assignee'>('none');
+  const [collapsedLanes, setCollapsedLanes] = useState<Record<string, boolean>>({});
   const [columnDensity, setColumnDensity] = useState<'compact' | 'normal' | 'wide'>('normal');
 
-  // Sorted projects alphabetically
+  // Sorted projects alphabetically (including projects present in issues)
   const sortedProjects = useMemo(() => {
-    return [...projects].sort((a, b) =>
+    const map = new Map<number, RedmineProject>();
+    projects.forEach((p) => map.set(p.id, p));
+    issues.forEach((i) => {
+      if (i.project && !map.has(i.project.id)) {
+        map.set(i.project.id, { id: i.project.id, name: i.project.name, identifier: '' });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) =>
       a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
     );
-  }, [projects]);
+  }, [projects, issues]);
+
+  const projectOptions = useMemo(() => {
+    return sortedProjects.map((p) => ({
+      id: p.id,
+      label: p.name,
+      badge: `#${p.id}`,
+    }));
+  }, [sortedProjects]);
 
   // Extract distinct assignees
   const assignees = useMemo(() => {
@@ -64,8 +81,15 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
         map.set(i.assigned_to.name, i.assigned_to.name);
       }
     });
-    return Array.from(map.values()).sort();
+    return Array.from(map.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [issues]);
+
+  const assigneeOptions = useMemo(() => {
+    return assignees.map((a) => ({
+      id: a,
+      label: a,
+    }));
+  }, [assignees]);
 
   // Filter issues belonging to operational trackers
   const operationalIssues = useMemo(() => {
@@ -84,14 +108,20 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
         if (!matchesSubject && !matchesId && !matchesParent) return false;
       }
 
-      // Project filter
-      if (selectedProjectId !== 'all' && issue.project.id !== selectedProjectId) {
+      // Multi-project filter
+      if (
+        selectedProjectIds.length > 0 &&
+        !selectedProjectIds.some((pId) => String(pId) === String(issue.project.id))
+      ) {
         return false;
       }
 
-      // Assignee filter
-      if (selectedAssignee !== 'all' && issue.assigned_to?.name !== selectedAssignee) {
-        return false;
+      // Multi-assignee filter
+      if (selectedAssignees.length > 0) {
+        const assigneeName = issue.assigned_to?.name;
+        if (!assigneeName || !selectedAssignees.includes(assigneeName)) {
+          return false;
+        }
       }
 
       // Tracker filter
@@ -117,8 +147,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     issues,
     operationalTrackerIds,
     searchQuery,
-    selectedProjectId,
-    selectedAssignee,
+    selectedProjectIds,
+    selectedAssignees,
     selectedTrackerId,
     onlyBlocked,
     filterParentId,
@@ -163,34 +193,86 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
 
   // Swimlanes
   const lanes = useMemo<BoardLane[]>(() => {
-    if (!groupByProject) {
-      return [{ key: 'all', issues: operationalIssues }];
+    if (groupBy === 'project') {
+      const map = new Map<number, { id: number; name: string; issues: RedmineIssue[] }>();
+      operationalIssues.forEach((issue) => {
+        const pId = issue.project.id;
+        if (!map.has(pId)) {
+          map.set(pId, { id: pId, name: issue.project.name, issues: [] });
+        }
+        map.get(pId)!.issues.push(issue);
+      });
+
+      return Array.from(map.values()).map((p) => ({
+        key: `project-${p.id}`,
+        title: (
+          <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
+            <FolderGit2 className="w-4 h-4 text-rose-400" />
+            <span>{p.name}</span>
+          </span>
+        ),
+        issues: p.issues,
+      }));
     }
 
-    const map = new Map<number, { id: number; name: string; issues: RedmineIssue[] }>();
-    operationalIssues.forEach((issue) => {
-      const pId = issue.project.id;
-      if (!map.has(pId)) {
-        map.set(pId, { id: pId, name: issue.project.name, issues: [] });
-      }
-      map.get(pId)!.issues.push(issue);
-    });
+    if (groupBy === 'assignee') {
+      const map = new Map<string, { name: string; issues: RedmineIssue[] }>();
+      operationalIssues.forEach((issue) => {
+        const aName = issue.assigned_to?.name || 'Não atribuído';
+        if (!map.has(aName)) {
+          map.set(aName, { name: aName, issues: [] });
+        }
+        map.get(aName)!.issues.push(issue);
+      });
 
-    return Array.from(map.values()).map((p) => ({
-      key: `project-${p.id}`,
-      title: (
-        <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
-          <FolderGit2 className="w-4 h-4 text-rose-400" />
-          <span>{p.name}</span>
-        </span>
-      ),
-      issues: p.issues,
+      const list = Array.from(map.values()).sort((a, b) => {
+        if (a.name === 'Não atribuído') return 1;
+        if (b.name === 'Não atribuído') return -1;
+        return a.name.localeCompare(b.name, 'pt-BR');
+      });
+
+      return list.map((a) => ({
+        key: `assignee-${a.name}`,
+        title: (
+          <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
+            <User className="w-4 h-4 text-rose-400" />
+            <span>{a.name}</span>
+          </span>
+        ),
+        issues: a.issues,
+      }));
+    }
+
+    return [{ key: 'all', issues: operationalIssues }];
+  }, [groupBy, operationalIssues]);
+
+  const handleToggleLaneCollapse = (laneKey: string) => {
+    setCollapsedLanes((prev) => ({
+      ...prev,
+      [laneKey]: !prev[laneKey],
     }));
-  }, [groupByProject, operationalIssues]);
+  };
+
+  const allLanesCollapsed = useMemo(() => {
+    if (lanes.length <= 1) return false;
+    return lanes.every((l) => Boolean(collapsedLanes[l.key]));
+  }, [lanes, collapsedLanes]);
+
+  const toggleAllLanes = () => {
+    if (allLanesCollapsed) {
+      setCollapsedLanes({});
+    } else {
+      const next: Record<string, boolean> = {};
+      lanes.forEach((l) => {
+        next[l.key] = true;
+      });
+      setCollapsedLanes(next);
+    }
+  };
 
   const activeFiltersCount =
-    (selectedProjectId !== 'all' ? 1 : 0) +
-    (selectedAssignee !== 'all' ? 1 : 0) +
+    (selectedProjectIds.length > 0 ? 1 : 0) +
+    (selectedAssignees.length > 0 ? 1 : 0) +
     (selectedTrackerId !== 'all' ? 1 : 0) +
     (onlyBlocked ? 1 : 0) +
     (filterParentId ? 1 : 0) +
@@ -198,8 +280,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
 
   const clearAllFilters = () => {
     setSearchQuery('');
-    setSelectedProjectId('all');
-    setSelectedAssignee('all');
+    setSelectedProjectIds([]);
+    setSelectedAssignees([]);
     setSelectedTrackerId('all');
     setOnlyBlocked(false);
     setFilterParentId('');
@@ -208,7 +290,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   return (
     <div className="space-y-4">
       {/* Top Banner & Control Bar */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
+      <div className="relative z-30 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
@@ -223,7 +305,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             </p>
           </div>
 
-          {/* Controls: Density and Group by Project */}
+          {/* Controls: Density, Grouping and Collapse All */}
           <div className="flex items-center flex-wrap gap-2.5">
             {/* Column Width / Density Selector */}
             <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px]">
@@ -263,16 +345,53 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               </button>
             </div>
 
-            {/* Group By Project Switch */}
-            <label className="flex items-center gap-2 cursor-pointer bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800 text-xs text-slate-300 hover:text-blue-500">
-              <input
-                type="checkbox"
-                checked={groupByProject}
-                onChange={(e) => setGroupByProject(e.target.checked)}
-                className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 focus:ring-offset-slate-900 border-slate-700 bg-slate-900 cursor-pointer"
-              />
-              <span className="font-medium">Agrupar por Projeto</span>
-            </label>
+            {/* Group By Selector */}
+            <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px]">
+              <span className="text-slate-400 px-2 font-medium">Agrupar:</span>
+              <button
+                type="button"
+                onClick={() => setGroupBy('none')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'none'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
+              >
+                Nenhum
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupBy('project')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'project'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
+              >
+                Por Projeto
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupBy('assignee')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'assignee'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
+              >
+                Por Responsável
+              </button>
+            </div>
+
+            {/* Collapse/Expand All Button when grouped */}
+            {lanes.length > 1 && (
+              <button
+                type="button"
+                onClick={toggleAllLanes}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 hover:text-white transition-all shadow-sm"
+                title={allLanesCollapsed ? 'Expandir todos os grupos' : 'Colapsar todos os grupos'}
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5 text-rose-400" />
+                <span>{allLanesCollapsed ? 'Expandir Todos' : 'Colapsar Todos'}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -290,38 +409,28 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             />
           </div>
 
-          {/* Project Filter (Alphabetically Sorted) */}
+          {/* Searchable Multi-Select Project Filter */}
           <div>
-            <select
-              value={selectedProjectId}
-              onChange={(e) =>
-                setSelectedProjectId(e.target.value === 'all' ? 'all' : Number(e.target.value))
-              }
-              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
-            >
-              <option value="all">Todos os Projetos ({sortedProjects.length})</option>
-              {sortedProjects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <SearchableMultiSelect
+              options={projectOptions}
+              selectedValues={selectedProjectIds}
+              onChange={(vals) => setSelectedProjectIds(vals as number[])}
+              placeholder="Projetos"
+              searchPlaceholder="Buscar projetos..."
+              allLabel="Todos os Projetos"
+            />
           </div>
 
-          {/* Assignee Filter */}
+          {/* Searchable Multi-Select Assignee Filter */}
           <div>
-            <select
-              value={selectedAssignee}
-              onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
-            >
-              <option value="all">Todos os Responsáveis</option>
-              {assignees.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+            <SearchableMultiSelect
+              options={assigneeOptions}
+              selectedValues={selectedAssignees}
+              onChange={(vals) => setSelectedAssignees(vals as string[])}
+              placeholder="Responsáveis"
+              searchPlaceholder="Buscar responsáveis..."
+              allLabel="Todos os Responsáveis"
+            />
           </div>
 
           {/* Tracker Filter */}
@@ -388,6 +497,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
         accent="rose"
         density={columnDensity}
         pendingIssueIds={pendingIssueIds}
+        collapsedLanes={collapsedLanes}
+        onToggleLaneCollapse={handleToggleLaneCollapse}
         onMoveIssue={onMoveIssue}
         onMoveColumn={onUpdateColumnOrder ? handleMoveColumn : undefined}
         onSelectIssue={onSelectIssue}

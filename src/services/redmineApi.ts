@@ -313,9 +313,14 @@ export class RedmineClient {
       const found = (await loadDemoIssues()).find((i) => i.id === issueId);
       return found ? { success: true, data: found } : { success: false, error: 'Tarefa não encontrada.' };
     }
-    const res = await this.request<{ issue: RedmineIssue }>(
+    let res = await this.request<{ issue: RedmineIssue }>(
       `/issues/${issueId}.json?include=children,relations,journals,watchers,allowed_statuses`
     );
+    if (!res.success) {
+      res = await this.request<{ issue: RedmineIssue }>(
+        `/issues/${issueId}.json?include=children,relations,journals,watchers`
+      );
+    }
     return { success: res.success, data: res.data?.issue, error: res.error };
   }
 
@@ -330,9 +335,11 @@ export class RedmineClient {
     if (this.isDemo) return this.updateDemoIssue(issueId, fields);
 
     const res = await this.request(`/issues/${issueId}.json`, { method: 'PUT', body: { issue: fields } });
-    if (!res.success) return { success: false, error: res.error, status: res.status };
     const fresh = await this.getIssueDetail(issueId);
-    return fresh.success ? fresh : { success: true };
+    if (!res.success) {
+      return { success: false, error: res.error, status: res.status, data: fresh.data };
+    }
+    return fresh.success && fresh.data ? { success: true, data: fresh.data } : { success: true };
   }
 
   private async updateDemoIssue(
@@ -432,19 +439,31 @@ export function processIssueWithConfig(issue: RedmineIssue, config: RedlevelsCon
   let strategic_initiative = '';
   const fields = Array.isArray(issue.custom_fields) ? issue.custom_fields : [];
 
-  if (config.blockedCustomFieldId) {
-    const blockedField = fields.find((f) => f.id === config.blockedCustomFieldId);
-    if (blockedField) {
-      const raw = customFieldText(blockedField.value).trim().toLowerCase();
-      const trigger = (config.blockedCustomFieldValueTrigger || '').trim().toLowerCase();
-      is_blocked = raw !== '' && (raw === trigger || TRUTHY.includes(raw) || (!!trigger && raw.split(', ').includes(trigger)));
+  const blockedIds = config.blockedCustomFieldIds && config.blockedCustomFieldIds.length > 0
+    ? config.blockedCustomFieldIds
+    : config.blockedCustomFieldId
+      ? [config.blockedCustomFieldId]
+      : [];
+
+  if (blockedIds.length > 0) {
+    const trigger = (config.blockedCustomFieldValueTrigger || '').trim().toLowerCase();
+    for (const bid of blockedIds) {
+      const blockedField = fields.find((f) => f.id === bid);
+      if (blockedField) {
+        const raw = customFieldText(blockedField.value).trim().toLowerCase();
+        const matches = raw !== '' && (raw === trigger || TRUTHY.includes(raw) || (!!trigger && raw.split(', ').includes(trigger)));
+        if (matches) {
+          is_blocked = true;
+          break;
+        }
+      }
     }
   }
 
   if (is_blocked) {
     const reasonField = fields.find(
       (f) =>
-        f.id !== config.blockedCustomFieldId &&
+        !blockedIds.includes(f.id) &&
         /motivo|impedimento|bloqueio|reason/i.test(f.name) &&
         customFieldText(f.value).trim() !== ''
     );

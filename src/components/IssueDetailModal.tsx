@@ -51,7 +51,30 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
     ? `${redmineUrl.replace(/\/+$/, '')}/issues/${issue.id}`
     : '#';
 
+  // Redmine provides allowed_statuses based on tracker & role workflow rules.
+  // Ensure current status is included so it displays accurately and guard against unexpected types.
+  const availableStatuses = React.useMemo(() => {
+    const list: RedmineStatus[] = [];
+    if (Array.isArray(issue.allowed_statuses) && issue.allowed_statuses.length > 0) {
+      issue.allowed_statuses.forEach((s) => {
+        if (s && typeof s === 'object' && typeof s.id === 'number') {
+          list.push({ id: s.id, name: s.name || `Status #${s.id}`, is_closed: s.is_closed });
+        }
+      });
+      if (issue.status && typeof issue.status.id === 'number' && !list.some((s) => s.id === issue.status.id)) {
+        list.unshift({
+          id: issue.status.id,
+          name: issue.status.name || `Status #${issue.status.id}`,
+          is_closed: issue.status.is_closed,
+        });
+      }
+    }
+    if (list.length > 0) return list;
+    return Array.isArray(statuses) ? statuses : [];
+  }, [issue.allowed_statuses, issue.status, statuses]);
+
   const handleStatusChange = async (newStatusId: number) => {
+    if (!newStatusId || newStatusId === issue.status?.id) return;
     setIsUpdatingStatus(true);
     try {
       await onUpdateStatus(issue.id, newStatusId);
@@ -66,7 +89,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
 
     setIsSubmittingNote(true);
     try {
-      await onUpdateStatus(issue.id, issue.status.id, newNote.trim());
+      await onUpdateStatus(issue.id, issue.status?.id ?? 0, newNote.trim());
       setNewNote('');
       setActiveTab('journals');
     } finally {
@@ -74,9 +97,19 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
     }
   };
 
+  const parentId = issue.parent
+    ? (typeof issue.parent === 'object' ? issue.parent.id : Number(issue.parent))
+    : null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-100">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-100"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Top Header */}
         <div className="px-6 py-4 border-b border-slate-800/80 bg-slate-950/60 flex items-start justify-between gap-4">
           <div className="space-y-1.5 flex-1 min-w-0">
@@ -89,22 +122,22 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
               </span>
               <span className="text-xs text-slate-400 flex items-center gap-1 truncate">
                 <FolderGit2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                <span className="truncate">{issue.project?.name}</span>
+                <span className="truncate">{issue.project?.name || ''}</span>
               </span>
-              {issue.parent && (
+              {parentId && (
                 <button
-                  onClick={() => onSelectIssueById?.(issue.parent!.id)}
+                  onClick={() => onSelectIssueById?.(parentId)}
                   className="text-xs font-mono px-2 py-0.5 rounded-md bg-blue-950/60 text-blue-300 border border-blue-800/60 hover:bg-blue-900/60 transition-colors flex items-center gap-1"
                   title="Abrir tarefa pai"
                 >
-                  <span>Pai: #{issue.parent.id}</span>
+                  <span>Pai: #{parentId}</span>
                   <ArrowUpRight className="w-3 h-3" />
                 </button>
               )}
             </div>
 
-            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-snug">
-              {issue.subject}
+            <h2 className="text-lg sm:text-xl font-bold text-slate-100 tracking-tight leading-snug">
+              {issue.subject || '(Sem assunto)'}
             </h2>
           </div>
 
@@ -114,7 +147,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 href={redmineIssueUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="p-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors flex items-center gap-1.5"
+                className="p-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-slate-100 border border-slate-700 transition-colors flex items-center gap-1.5"
                 title="Abrir no Redmine Web Oficial"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -123,7 +156,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -162,12 +195,12 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-slate-400 font-medium">Status:</span>
               <select
-                value={issue.status.id}
+                value={issue.status?.id ?? (availableStatuses[0]?.id ?? '')}
                 onChange={(e) => handleStatusChange(Number(e.target.value))}
-                disabled={isUpdatingStatus}
+                disabled={isUpdatingStatus || availableStatuses.length === 0}
                 className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 font-semibold focus:outline-none focus:border-rose-500 cursor-pointer disabled:opacity-50"
               >
-                {statuses.map((s) => (
+                {availableStatuses.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
                   </option>
@@ -211,7 +244,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
           <button
             onClick={() => setActiveTab('details')}
             className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'details'
-              ? 'border-rose-500 text-blue'
+              ? 'border-rose-500 text-rose-300'
               : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
           >
@@ -222,13 +255,13 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
           <button
             onClick={() => setActiveTab('journals')}
             className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'journals'
-              ? 'border-rose-500 text-blue'
+              ? 'border-rose-500 text-rose-300'
               : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Histórico & Notas</span>
-            {issue.journals && issue.journals.length > 0 && (
+            {Array.isArray(issue.journals) && issue.journals.length > 0 && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
                 {issue.journals.length}
               </span>
@@ -238,13 +271,13 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
           <button
             onClick={() => setActiveTab('custom_fields')}
             className={`py-3 flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'custom_fields'
-              ? 'border-rose-500 text-blue'
+              ? 'border-rose-500 text-rose-300'
               : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
           >
             <Tag className="w-3.5 h-3.5" />
             <span>Campos Personalizados</span>
-            {issue.custom_fields && (
+            {Array.isArray(issue.custom_fields) && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
                 {issue.custom_fields.length}
               </span>
@@ -267,29 +300,33 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
               </div>
 
               {/* Subtasks / Children list */}
-              {issue.children && issue.children.length > 0 && (
+              {Array.isArray(issue.children) && issue.children.length > 0 && (
                 <div className="space-y-2.5">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
                     <span>Subtarefas / Tarefas Filhas ({issue.children.length})</span>
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {issue.children.map((child) => (
-                      <div
-                        key={child.id}
-                        onClick={() => onSelectIssueById?.(child.id)}
-                        className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 cursor-pointer transition-all flex items-center justify-between gap-2"
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="font-mono text-xs font-bold text-rose-300 bg-rose-950/50 px-1.5 py-0.5 rounded border border-rose-900/60">
-                            #{child.id}
-                          </span>
-                          <span className="text-xs text-slate-200 truncate font-medium">
-                            {child.subject || `Subtarefa #${child.id}`}
-                          </span>
+                    {issue.children.map((child, idx) => {
+                      const cId = typeof child === 'object' && child !== null ? child.id : Number(child);
+                      const cSubj = typeof child === 'object' && child !== null ? child.subject : '';
+                      return (
+                        <div
+                          key={cId ?? idx}
+                          onClick={() => cId && onSelectIssueById?.(cId)}
+                          className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 cursor-pointer transition-all flex items-center justify-between gap-2"
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="font-mono text-xs font-bold text-rose-300 bg-rose-950/50 px-1.5 py-0.5 rounded border border-rose-900/60">
+                              #{cId}
+                            </span>
+                            <span className="text-xs text-slate-200 truncate font-medium">
+                              {cSubj || `Subtarefa #${cId}`}
+                            </span>
+                          </div>
+                          <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                         </div>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -305,7 +342,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800/80">
-                  <span className="text-[11px] text-slate-400 block font-medium">Data de Entrega</span>
+                  <span className="text-[11px] text-slate-400 block font-medium">Data de Prevista</span>
                   <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-slate-200">
                     <Calendar className="w-3.5 h-3.5 text-rose-400" />
                     <span>{issue.due_date || 'Não definida'}</span>
@@ -351,13 +388,13 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                     onChange={(e) => setNewNote(e.target.value)}
                     rows={3}
                     placeholder="Escreva sua atualização ou anotação para o Redmine..."
-                    className="w-full p-3.5 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-all resize-none"
+                    className="w-full p-3.5 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-all resize-none"
                   />
                   <div className="flex justify-end mt-2">
                     <button
                       type="submit"
                       disabled={!newNote.trim() || isSubmittingNote}
-                      className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50 transition-all"
+                      className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50 transition-all cursor-pointer"
                     >
                       {isSubmittingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                       <span>Salvar Nota</span>
@@ -371,10 +408,10 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                   Histórico de Anotações
                 </h4>
-                {issue.journals && issue.journals.length > 0 ? (
-                  issue.journals.map((journal) => (
+                {Array.isArray(issue.journals) && issue.journals.length > 0 ? (
+                  issue.journals.map((journal, idx) => (
                     <div
-                      key={journal.id}
+                      key={journal.id ?? idx}
                       className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2"
                     >
                       <div className="flex items-center justify-between text-xs">
@@ -387,7 +424,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                       </div>
                       {journal.notes && (
                         <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">
-                          {journal.notes}
+                          {String(journal.notes)}
                         </p>
                       )}
                     </div>
@@ -404,21 +441,25 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
           {activeTab === 'custom_fields' && (
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Campos Personalizados (Custom Fields)
+                Campos Personalizados
               </h4>
-              {issue.custom_fields && issue.custom_fields.length > 0 ? (
+              {Array.isArray(issue.custom_fields) && issue.custom_fields.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {issue.custom_fields.map((cf) => (
+                  {issue.custom_fields.map((cf, idx) => (
                     <div
-                      key={cf.id}
+                      key={cf.id ?? idx}
                       className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1"
                     >
                       <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                        {cf.name}
+                        {cf.name || `Campo #${cf.id}`}
                       </span>
-                      <p className="text-xs text-white font-medium">
+                      <p className="text-xs text-rose-300 font-medium break-words">
                         {cf.value !== undefined && cf.value !== null && cf.value !== '' ? (
-                          String(cf.value)
+                          Array.isArray(cf.value)
+                            ? cf.value.map((v) => (typeof v === 'object' && v !== null ? ((v as any)?.name || JSON.stringify(v)) : String(v))).join(', ')
+                            : typeof cf.value === 'object' && cf.value !== null
+                              ? ((cf.value as any)?.name || JSON.stringify(cf.value))
+                              : String(cf.value)
                         ) : (
                           <span className="text-slate-600 italic">Vazio</span>
                         )}

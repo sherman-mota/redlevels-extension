@@ -56,6 +56,7 @@ export const DEFAULT_CONFIG: RedlevelsConfig = {
   tacticalTrackerIds: [],
   strategicCustomFieldId: undefined,
   blockedCustomFieldId: undefined,
+  blockedCustomFieldIds: [],
   blockedCustomFieldValueTrigger: 'Sim',
   statusMapping: EMPTY_STATUS_MAPPING,
   operationalStatusMapping: EMPTY_STATUS_MAPPING,
@@ -76,6 +77,7 @@ export const DEMO_CONFIG_PRESET: Partial<RedlevelsConfig> = {
   tacticalTrackerIds: [4, 5],
   strategicCustomFieldId: 10,
   blockedCustomFieldId: 20,
+  blockedCustomFieldIds: [20],
   blockedCustomFieldValueTrigger: 'Sim',
   statusMapping: { backlog: [1], analysis: [2], in_progress: [3, 4], done: [5] },
   operationalStatusMapping: { backlog: [1], analysis: [2], in_progress: [3, 4], done: [5] },
@@ -95,10 +97,17 @@ export async function loadConfig(): Promise<RedlevelsConfig> {
       const tacMapping = parsed.tacticalStatusMapping
         ? normalizeStatusMapping(parsed.tacticalStatusMapping)
         : { ...baseMapping };
+      const blockedIds = parsed.blockedCustomFieldIds
+        ? parsed.blockedCustomFieldIds
+        : parsed.blockedCustomFieldId
+          ? [parsed.blockedCustomFieldId]
+          : [];
 
       return {
         ...DEFAULT_CONFIG,
         ...parsed,
+        blockedCustomFieldIds: blockedIds,
+        blockedCustomFieldId: blockedIds[0] ?? parsed.blockedCustomFieldId,
         statusMapping: baseMapping,
         operationalStatusMapping: opMapping,
         tacticalStatusMapping: tacMapping,

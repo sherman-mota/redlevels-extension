@@ -105,6 +105,7 @@ export interface RedlevelsConfig {
   tacticalTrackerIds: number[];
   strategicCustomFieldId?: number;
   blockedCustomFieldId?: number;
+  blockedCustomFieldIds?: number[];
   blockedCustomFieldValueTrigger?: string; // value that triggers blocked, e.g. "Sim", "1", "true"
   statusMapping: StatusMapping;
   operationalStatusMapping?: StatusMapping;

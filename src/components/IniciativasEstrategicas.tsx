@@ -78,6 +78,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
   const [selectedAssignee, setSelectedAssignee] = useState<string | 'all'>('all');
   const [selectedStatusId, setSelectedStatusId] = useState<number | 'all'>('all');
   const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [hideEmptyOrCompleted, setHideEmptyOrCompleted] = useState(true);
   const [selectedCustomFieldFilter, setSelectedCustomFieldFilter] = useState<{ fieldId: number; value: string } | null>(null);
 
   // Extract assignees
@@ -339,6 +340,12 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
         };
       })
       .filter((item) => {
+        if (hideEmptyOrCompleted) {
+          const isFinished = item.initiative.status === 'Concluído' || item.progress === 100;
+          const hasNoTasks = item.totalTactical === 0;
+          if (hasNoTasks || isFinished) return false;
+        }
+
         // If filters are active, only show groups with matching tactical tasks
         if (hasActiveFilters) {
           return item.totalTactical > 0;
@@ -354,6 +361,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
     selectedAssignee,
     selectedStatusId,
     onlyBlocked,
+    hideEmptyOrCompleted,
     selectedCustomFieldFilter,
     hasActiveFilters,
     strategicCustomFieldId,
@@ -371,7 +379,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
   return (
     <div className="space-y-4">
       {/* Top Banner & Control Bar */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
+      <div className="relative z-30 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
@@ -397,7 +405,17 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs text-slate-300 hover:text-blue-500 whitespace-nowrap shadow-sm">
+              <input
+                type="checkbox"
+                checked={hideEmptyOrCompleted}
+                onChange={(e) => setHideEmptyOrCompleted(e.target.checked)}
+                className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer"
+              />
+              <span>Ocultar sem tarefas ou concluídas</span>
+            </label>
+
             <button
               onClick={() => {
                 const anyOpen = initiativeTree.some((i) => isInitiativeExpanded(i.initiative.title));
