@@ -66,7 +66,7 @@ export const DEFAULT_CONFIG: RedlevelsConfig = {
   operationalColumnOrder: [],
   tacticalColumnOrder: [],
   loadAllIssueStatuses: false,
-  closedLookbackDays: 60,
+  closedLookbackDays: 30,
   maxIssuesLimit: 5000,
 };
 

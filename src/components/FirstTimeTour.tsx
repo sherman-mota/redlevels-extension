@@ -49,8 +49,9 @@ export const FirstTimeTour: React.FC<FirstTimeTourProps> = ({ isOpen, onClose, o
       title: 'Operacional',
       headline: 'Para execução do dia a dia das equipes',
       description:
-        'Aqui ficam as tarefas do nível operacional. As tarefas são exibidas como cards organizados em um Kanban, onde cada coluna representa a situação da tarefa.',
+        'Aqui ficam as tarefas do nível operacional. O foco são as tarefas abertas do dia a dia, exibindo como concluídas apenas as entregas dos últimos 30 dias para máxima performance.',
       highlights: [
+        'Foco em tarefas abertas: 100% das tarefas em andamento e histórico recente de 30 dias para concluídas',
         'Cards exibem ID, projeto, assunto, responsável e ID da tarefa pai',
         'Sinalização destacada de cartões com impedimento (bloqueio)',
         'Mova o card para uma coluna para atualizar o status no Redmine via Redmine API',

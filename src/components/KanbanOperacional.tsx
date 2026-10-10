@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   Maximize2,
+  Sparkles,
 } from 'lucide-react';
 import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping } from '../types/redmine';
 import { KanbanBoard, buildColumns, BoardLane, BoardColumn } from './KanbanBoard';
@@ -59,6 +60,22 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   const [collapsedLanes, setCollapsedLanes] = useState<Record<string, boolean>>({});
   const [collapsedTrackers, setCollapsedTrackers] = useState<Record<number, boolean>>({});
   const [columnDensity, setColumnDensity] = useState<'compact' | 'normal' | 'wide'>('normal');
+  const [lightView, setLightView] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('redlevels_kanban_light_view') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleSetLightView = (val: boolean) => {
+    setLightView(val);
+    try {
+      localStorage.setItem('redlevels_kanban_light_view', String(val));
+    } catch {
+      // ignore
+    }
+  };
 
   // Operational trackers list
   const operationalTrackers = useMemo(() => {
@@ -305,67 +322,122 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   };
 
   // Render card UI
-  const renderCard = (issue: RedmineIssue) => (
-    <>
-      {/* Top Bar: ID, Tracker, Parent ID */}
-      <div className="flex items-center justify-between gap-1.5 mb-2">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-mono text-[11px] font-bold text-rose-300 bg-rose-950/50 px-1.5 py-0.2 rounded border border-rose-900/50">
-            #{issue.id}
-          </span>
-          <span className="text-[10px] font-medium text-slate-300 bg-slate-800/70 px-1.5 py-0.2 rounded">
-            {issue.tracker.name}
-          </span>
-        </div>
+  const renderCard = (issue: RedmineIssue) => {
+    if (lightView) {
+      return (
+        <div
+          className="flex items-center justify-between gap-2 min-w-0"
+          title={`#${issue.id}: ${issue.subject}`}
+        >
+          {/* Left: ID e Subject em somente uma linha */}
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span className="font-mono text-[11px] font-bold text-rose-300 shrink-0">
+              #{issue.id}
+            </span>
 
-        {/* ID da tarefa pai */}
-        {issue.parent && (
-          <span
-            className="font-mono text-[10px] font-semibold text-blue-300 bg-blue-950/50 px-1.5 py-0.2 rounded border border-blue-900/50"
-            title={`Tarefa Pai #${issue.parent.id}`}
-          >
-            Pai: #{issue.parent.id}
-          </span>
-        )}
-      </div>
+            {issue.is_blocked && (
+              <span
+                className="text-rose-400 shrink-0 cursor-help"
+                title={`Impedimento: ${issue.block_reason || 'Item bloqueado'}`}
+              >
+                <AlertTriangle className="w-3 h-3 text-rose-400 animate-pulse" />
+              </span>
+            )}
 
-      {/* Sinalização de impedimento */}
-      {issue.is_blocked && (
-        <div className="mb-2 p-1.5 rounded-lg bg-rose-950/80 border border-rose-700/80 flex items-start gap-1.5 text-[11px] text-rose-200">
-          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
-          <div className="flex-1 leading-tight">
-            <strong className="block text-[10px] font-bold uppercase text-rose-300">
-              Impedimento
-            </strong>
-            <span className="text-slate-300 line-clamp-2">
-              {issue.block_reason || 'Item bloqueado'}
+            <span
+              className="truncate text-[11.5px] text-slate-200 group-hover:text-white font-medium"
+              title={issue.subject}
+            >
+              {issue.subject}
+            </span>
+          </div>
+
+          {/* Right: Ícone do Projeto e Ícone do Responsável (nome visível via hover) */}
+          <div className="flex items-center gap-1.5 shrink-0 text-slate-400">
+            <span
+              className="p-0.5 hover:text-slate-200 cursor-help transition-colors"
+              title={`Projeto: ${issue.project.name}`}
+            >
+              <FolderGit2 className="w-3.5 h-3.5 text-slate-400" />
+            </span>
+
+            <span
+              className="p-0.5 hover:text-rose-300 cursor-help transition-colors"
+              title={`Responsável: ${issue.assigned_to?.name || 'Não atribuído'}`}
+            >
+              <User
+                className={`w-3.5 h-3.5 ${
+                  issue.assigned_to ? 'text-rose-400' : 'text-slate-600'
+                }`}
+              />
             </span>
           </div>
         </div>
-      )}
+      );
+    }
 
-      {/* Assunto */}
-      <h5 className="text-xs font-semibold text-slate-100 group-hover:text-white line-clamp-2 leading-snug mb-2.5">
-        {issue.subject}
-      </h5>
+    return (
+      <>
+        {/* Top Bar: ID, Tracker, Parent ID */}
+        <div className="flex items-center justify-between gap-1.5 mb-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono text-[11px] font-bold text-rose-300 bg-rose-950/50 px-1.5 py-0.2 rounded border border-rose-900/50">
+              #{issue.id}
+            </span>
+            <span className="text-[10px] font-medium text-slate-300 bg-slate-800/70 px-1.5 py-0.2 rounded">
+              {issue.tracker.name}
+            </span>
+          </div>
 
-      {/* Bottom row: Projeto & Responsável */}
-      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/80 gap-2">
-        <span className="truncate flex items-center gap-1 max-w-[55%]" title={issue.project.name}>
-          <FolderGit2 className="w-3 h-3 text-slate-500 shrink-0" />
-          <span className="truncate">{issue.project.name}</span>
-        </span>
+          {/* ID da tarefa pai */}
+          {issue.parent && (
+            <span
+              className="font-mono text-[10px] font-semibold text-blue-300 bg-blue-950/50 px-1.5 py-0.2 rounded border border-blue-900/50"
+              title={`Tarefa Pai #${issue.parent.id}`}
+            >
+              Pai: #{issue.parent.id}
+            </span>
+          )}
+        </div>
 
-        <span
-          className="truncate flex items-center gap-1 font-medium text-slate-300 max-w-[45%]"
-          title={issue.assigned_to?.name || 'Não atribuído'}
-        >
-          <User className="w-3 h-3 text-rose-400 shrink-0" />
-          <span className="truncate">{issue.assigned_to?.name || 'Sem resp.'}</span>
-        </span>
-      </div>
-    </>
-  );
+        {/* Sinalização de impedimento */}
+        {issue.is_blocked && (
+          <div className="mb-2 p-1.5 rounded-lg bg-rose-950/80 border border-rose-700/80 flex items-start gap-1.5 text-[11px] text-rose-200">
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
+            <div className="flex-1 leading-tight">
+              <strong className="block text-[10px] font-bold uppercase text-rose-300">
+                Impedimento
+              </strong>
+              <span className="text-slate-300 line-clamp-2">
+                {issue.block_reason || 'Item bloqueado'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Assunto */}
+        <h5 className="text-xs font-semibold text-slate-100 group-hover:text-white line-clamp-2 leading-snug mb-2.5">
+          {issue.subject}
+        </h5>
+
+        {/* Bottom row: Projeto & Responsável */}
+        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/80 gap-2">
+          <span className="truncate flex items-center gap-1 max-w-[55%]" title={issue.project.name}>
+            <FolderGit2 className="w-3 h-3 text-slate-500 shrink-0" />
+            <span className="truncate">{issue.project.name}</span>
+          </span>
+
+          <span
+            className="truncate flex items-center gap-1 font-medium text-slate-300 max-w-[45%]"
+            title={issue.assigned_to?.name || 'Não atribuído'}
+          >
+            <User className="w-3 h-3 text-rose-400 shrink-0" />
+            <span className="truncate">{issue.assigned_to?.name || 'Sem resp.'}</span>
+          </span>
+        </div>
+      </>
+    );
+  };
 
   // Filter trackers to display: all operational trackers or single selected tracker
   const displayedTrackers = useMemo(() => {
@@ -374,6 +446,56 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     }
     return operationalTrackers.filter((t) => t.id === selectedTrackerId);
   }, [operationalTrackers, selectedTrackerId]);
+
+  // Collect all active swimlane keys across all displayed trackers
+  const allActiveLaneKeys = useMemo(() => {
+    if (groupBy === 'none') return [];
+    const keys: string[] = [];
+    displayedTrackers.forEach((t) => {
+      const tIssues = operationalIssues.filter((i) => i.tracker.id === t.id);
+      const lanes = buildTrackerLanes(tIssues, t.id);
+      lanes.forEach((l) => keys.push(l.key));
+    });
+    return keys;
+  }, [groupBy, displayedTrackers, operationalIssues, buildTrackerLanes]);
+
+  // Determine if everything (swimlanes if grouped, or trackers if multi-tracker) is collapsed
+  const allCollapsed = useMemo(() => {
+    if (groupBy !== 'none' && allActiveLaneKeys.length > 0) {
+      return allActiveLaneKeys.every((k) => Boolean(collapsedLanes[k]));
+    }
+    if (displayedTrackers.length > 1) {
+      return displayedTrackers.every((t) => Boolean(collapsedTrackers[t.id]));
+    }
+    return false;
+  }, [groupBy, allActiveLaneKeys, collapsedLanes, displayedTrackers, collapsedTrackers]);
+
+  const handleToggleCollapseAll = () => {
+    if (groupBy !== 'none' && allActiveLaneKeys.length > 0) {
+      if (allCollapsed) {
+        setCollapsedLanes({});
+      } else {
+        const next: Record<string, boolean> = {};
+        allActiveLaneKeys.forEach((k) => {
+          next[k] = true;
+        });
+        setCollapsedLanes(next);
+      }
+      return;
+    }
+
+    if (displayedTrackers.length > 1) {
+      if (allCollapsed) {
+        setCollapsedTrackers({});
+      } else {
+        const next: Record<number, boolean> = {};
+        displayedTrackers.forEach((t) => {
+          next[t.id] = true;
+        });
+        setCollapsedTrackers(next);
+      }
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -488,6 +610,49 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                 Por Responsável
               </button>
             </div>
+
+            {/* View Mode: Padrão vs Light */}
+            <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px]">
+              <span className="text-slate-400 px-2 font-medium">Visual:</span>
+              <button
+                type="button"
+                onClick={() => handleSetLightView(false)}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  !lightView
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-blue-500'
+                }`}
+                title="Visão detalhada com todos os dados e alertas expandidos"
+              >
+                Padrão
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetLightView(true)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  lightView
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-blue-500'
+                }`}
+                title="Visão Light: layout super compacto em 1 linha e foco no essencial"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>Light</span>
+              </button>
+            </div>
+
+            {/* Collapse / Expand All Button */}
+            {(groupBy !== 'none' || displayedTrackers.length > 1) && (
+              <button
+                type="button"
+                onClick={handleToggleCollapseAll}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shadow-sm"
+                title={allCollapsed ? 'Expandir todos os grupos/trackers' : 'Colapsar todos os grupos/trackers'}
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5 text-rose-400" />
+                <span>{allCollapsed ? 'Expandir Todos' : 'Colapsar Todos'}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -788,6 +953,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                   onSelectIssue={onSelectIssue}
                   emptyColumnLabel="Nenhuma tarefa"
                   renderCard={renderCard}
+                  lightView={lightView}
                 />
               )}
             </div>

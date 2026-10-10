@@ -77,7 +77,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
   // Task fetching scope & volume
   const [loadAllIssueStatuses, setLoadAllIssueStatuses] = useState<boolean>(Boolean(config.loadAllIssueStatuses));
   const [closedLookbackDays, setClosedLookbackDays] = useState<number>(
-    typeof config.closedLookbackDays === 'number' ? config.closedLookbackDays : 60
+    typeof config.closedLookbackDays === 'number' ? config.closedLookbackDays : 30
   );
   const [maxIssuesLimit, setMaxIssuesLimit] = useState<number>(
     typeof config.maxIssuesLimit === 'number' ? config.maxIssuesLimit : 5000
@@ -1122,8 +1122,8 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
               onChange={(e) => setClosedLookbackDays(Number(e.target.value))}
               className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 text-xs text-white focus:outline-none focus:border-rose-500 disabled:opacity-50"
             >
-              <option value={30}>Últimos 30 dias</option>
-              <option value={60}>Últimos 60 dias (Recomendado)</option>
+              <option value={30}>Últimos 30 dias (Padrão)</option>
+              <option value={60}>Últimos 60 dias</option>
               <option value={90}>Últimos 90 dias</option>
               <option value={180}>Últimos 180 dias (6 meses)</option>
               <option value={365}>Último 1 ano (365 dias)</option>

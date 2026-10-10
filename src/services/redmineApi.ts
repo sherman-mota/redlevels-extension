@@ -29,7 +29,7 @@ const REQUEST_TIMEOUT_MS = 20000;
 const PAGE_SIZE = 100; // Redmine's default max per page
 export const DEFAULT_MAX_ISSUES = 5000;
 export const DEFAULT_MAX_CLOSED_ISSUES = 2000;
-export const DEFAULT_CLOSED_LOOKBACK_DAYS = 60;
+export const DEFAULT_CLOSED_LOOKBACK_DAYS = 30;
 
 export interface WorkspaceIssuesOptions {
   trackerIds?: number[];

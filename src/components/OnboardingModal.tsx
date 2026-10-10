@@ -158,6 +158,17 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 />
               </div>
 
+              {/* Focus on Open Tasks Note */}
+              <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-300 leading-relaxed flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-slate-100 block font-semibold">Foco em tarefas ativas & desempenho ágil</strong>
+                  <span>
+                    O Redlevels prioriza a execução diária trazendo <strong>100% das tarefas abertas</strong>. Para manter o carregamento leve e instantâneo, são exibidas como concluídas apenas as tarefas dos <strong>últimos 30 dias</strong> (ajustável em Configurações).
+                  </span>
+                </div>
+              </div>
+
               {/* Requirement Note: "A api key poderá ser gerada utilizando o link https://[IP_ADDRESS]/my/account" */}
               <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-900/50 text-xs text-rose-200/90 leading-relaxed space-y-1">
                 <div className="font-semibold text-rose-300 flex items-center gap-1.5">
