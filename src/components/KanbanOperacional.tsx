@@ -52,7 +52,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
   const [onlyBlocked, setOnlyBlocked] = useState(false);
   const [filterParentId, setFilterParentId] = useState<string>('');
-  const [groupBy, setGroupBy] = useState<'none' | 'project' | 'assignee'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'project' | 'assignee'>('project');
   const [collapsedLanes, setCollapsedLanes] = useState<Record<string, boolean>>({});
   const [collapsedTrackers, setCollapsedTrackers] = useState<Record<number, boolean>>({});
   const [columnDensity, setColumnDensity] = useState<'compact' | 'normal' | 'wide'>('normal');
@@ -187,39 +187,6 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     filterParentId,
   ]);
 
-  // Map of statuses associated with each tracker.
-  // Each tracker's statuses are derived from all workspace issues belonging to that tracker.
-  const trackerStatusMap = useMemo(() => {
-    const map = new Map<number, RedmineStatus[]>();
-
-    operationalTrackers.forEach((tracker) => {
-      // Find all workspace issues of this tracker
-      const trackerWorkspaceIssues = issues.filter((i) => i.tracker.id === tracker.id);
-      const validStatusIds = new Set<number>();
-
-      trackerWorkspaceIssues.forEach((issue) => {
-        if (issue.status?.id) validStatusIds.add(issue.status.id);
-        if (Array.isArray(issue.allowed_statuses)) {
-          issue.allowed_statuses.forEach((st) => {
-            if (st?.id) validStatusIds.add(st.id);
-          });
-        }
-      });
-
-      if (validStatusIds.size > 0) {
-        map.set(
-          tracker.id,
-          statuses.filter((s) => validStatusIds.has(s.id))
-        );
-      } else {
-        // Fallback: if no workspace issues exist yet for this tracker
-        map.set(tracker.id, statuses);
-      }
-    });
-
-    return map;
-  }, [operationalTrackers, issues, statuses]);
-
   // Swimlanes builder per tracker
   const buildTrackerLanes = useCallback(
     (trackerIssues: RedmineIssue[], trackerId: number): BoardLane[] => {
@@ -233,10 +200,14 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           map.get(pId)!.issues.push(issue);
         });
 
+        if (map.size === 0) {
+          return [{ key: `t-${trackerId}-all`, issues: [] }];
+        }
+
         return Array.from(map.values()).map((p) => ({
           key: `t-${trackerId}-project-${p.id}`,
           title: (
-            <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
+            <span className="flex items-center gap-2 text-sm font-bold text-white tracking-tight">
               <FolderGit2 className="w-4 h-4 text-rose-400" />
               <span>{p.name}</span>
             </span>
@@ -670,12 +641,9 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           // Issues specific to this tracker matching active filters
           const trackerIssues = operationalIssues.filter((i) => i.tracker.id === tracker.id);
 
-          // Statuses belonging strictly to this tracker
-          const trackerStatuses = trackerStatusMap.get(tracker.id) || statuses;
-
-          // Build columns specific to this tracker's statuses
+          // Build columns specific to this tracker with all columns (even without tasks in that state)
           const trackerColumns = buildColumns(
-            trackerStatuses,
+            statuses,
             statusMapping,
             trackerIssues,
             columnOrder
