@@ -101,6 +101,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [internalCollapsedLanes, setInternalCollapsedLanes] = useState<Record<string, boolean>>({});
   const [expandedCols, setExpandedCols] = useState<Record<string, boolean>>({});
+  const [expandedEmptyCols, setExpandedEmptyCols] = useState<Record<string, boolean>>({});
   const laneRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
 
   const effectiveCollapsedLanes = controlledCollapsedLanes ?? internalCollapsedLanes;
@@ -174,7 +175,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <button
                       type="button"
                       onClick={() => scrollLane(lane.key, 'left')}
-                      className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                      className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-blue-500 hover:bg-slate-800 transition-colors"
                       title="Rolar colunas para a esquerda"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
@@ -182,7 +183,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <button
                       type="button"
                       onClick={() => scrollLane(lane.key, 'right')}
-                      className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                      className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-blue-500 hover:bg-slate-800 transition-colors"
                       title="Rolar colunas para a direita"
                     >
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -197,7 +198,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <button
                     type="button"
                     onClick={() => scrollLane(lane.key, 'left')}
-                    className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-blue-500 hover:bg-slate-800 transition-colors"
                     title="Rolar colunas para a esquerda"
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
@@ -205,7 +206,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <button
                     type="button"
                     onClick={() => scrollLane(lane.key, 'right')}
-                    className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-blue-500 hover:bg-slate-800 transition-colors"
                     title="Rolar colunas para a direita"
                   >
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -228,6 +229,55 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   const meta = category ? COLUMN_META[category] : undefined;
                   const showAll = !!expandedCols[targetKey];
                   const visible = showAll ? columnIssues : columnIssues.slice(0, PAGE);
+                  const isColEmpty = columnIssues.length === 0;
+                  const isCollapsedEmpty = isColEmpty && !expandedEmptyCols[targetKey];
+
+                  if (isCollapsedEmpty) {
+                    return (
+                      <div
+                        key={status.id}
+                        onDragOver={(e) => {
+                          if (!dragged) return;
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                          if (dropTarget !== targetKey) setDropTarget(targetKey);
+                        }}
+                        onDragLeave={(e) => {
+                          if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null);
+                        }}
+                        onDrop={(e) => handleDrop(e, status.id)}
+                        onClick={() => setExpandedEmptyCols((p) => ({ ...p, [targetKey]: true }))}
+                        className={`snap-start shrink-0 w-12 sm:w-14 min-h-[220px] flex flex-col items-center justify-between py-3.5 px-1 rounded-2xl border border-dashed transition-all duration-150 cursor-pointer select-none group ${isDropTarget
+                          ? accentRing
+                          : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900/80 hover:border-slate-700'
+                          }`}
+                        title={`${status.name} (0 tarefas - clique para expandir ou arraste uma tarefa para cá)`}
+                      >
+                        {/* Top: Status Dot & Badge 0 */}
+                        <div className="flex flex-col items-center gap-1.5 pt-0.5 shrink-0">
+                          <span className={`w-2.5 h-2.5 rounded-full ${meta?.dot || 'bg-slate-600'}`} />
+                          <span className="text-[10px] font-mono text-slate-500 bg-slate-900 px-1 py-0.2 rounded-full border border-slate-800">
+                            0
+                          </span>
+                        </div>
+
+                        {/* Middle: Rotated 90° Label */}
+                        <div className="flex-1 flex items-center justify-center my-3 overflow-hidden">
+                          <span
+                            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                            className="text-xs font-bold text-slate-400 group-hover:text-slate-100 tracking-wider whitespace-nowrap"
+                          >
+                            {status.name}
+                          </span>
+                        </div>
+
+                        {/* Bottom: Expand hint */}
+                        <div className="pb-1 text-slate-500 group-hover:text-rose-400 transition-colors shrink-0">
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div
@@ -242,9 +292,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null);
                       }}
                       onDrop={(e) => handleDrop(e, status.id)}
-                      className={`snap-start shrink-0 ${colWidthClass} flex flex-col rounded-2xl border transition-all duration-150 ${
-                        isDropTarget ? accentRing : 'bg-slate-900/70 border-slate-800/80'
-                      }`}
+                      className={`snap-start shrink-0 ${colWidthClass} flex flex-col rounded-2xl border transition-all duration-150 ${isDropTarget ? accentRing : 'bg-slate-900/70 border-slate-800/80'
+                        }`}
                     >
                       <div className="px-3 py-2.5 border-b border-slate-800/80 flex items-center justify-between gap-2 sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -284,6 +333,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           </h4>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
+                          {isColEmpty && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedEmptyCols((p) => ({ ...p, [targetKey]: false }));
+                              }}
+                              className="p-1 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                              title="Colapsar coluna vazia"
+                            >
+                              <ChevronLeft className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {meta && (
                             <span className={`hidden xl:inline text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded border ${meta.chip}`}>
                               {meta.label}
@@ -298,9 +360,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <div className="p-2 space-y-2 flex-1 overflow-y-auto max-h-[calc(100vh-260px)] min-h-[120px]">
                         {columnIssues.length === 0 ? (
                           <div
-                            className={`h-20 flex items-center justify-center border border-dashed rounded-xl text-[11px] transition-colors ${
-                              isDropTarget ? 'border-current text-slate-300' : 'border-slate-800/70 text-slate-600'
-                            }`}
+                            className={`h-20 flex items-center justify-center border border-dashed rounded-xl text-[11px] transition-colors ${isDropTarget ? 'border-current text-slate-300' : 'border-slate-800/70 text-slate-600'
+                              }`}
                           >
                             {dragged ? 'Soltar aqui' : emptyColumnLabel}
                           </div>
@@ -330,13 +391,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                 }}
                                 role="button"
                                 tabIndex={0}
-                                className={`relative p-3 rounded-xl border cursor-grab active:cursor-grabbing select-none transition-all duration-150 shadow-sm group ${cardHover} ${
-                                  issue.is_blocked
-                                    ? 'bg-gradient-to-br from-rose-950/50 via-slate-900/90 to-slate-900 border-rose-800/70'
-                                    : 'bg-slate-950/80 border-slate-800/90 hover:bg-slate-900'
-                                } ${isDragging ? 'opacity-40 scale-[0.97]' : 'hover:-translate-y-0.5 hover:shadow-md'} ${
-                                  pending ? 'opacity-70 pointer-events-none' : ''
-                                }`}
+                                className={`relative p-3 rounded-xl border cursor-grab active:cursor-grabbing select-none transition-all duration-150 shadow-sm group ${cardHover} ${issue.is_blocked
+                                  ? 'bg-gradient-to-br from-rose-950/50 via-slate-900/90 to-slate-900 border-rose-800/70'
+                                  : 'bg-slate-950/80 border-slate-800/90 hover:bg-slate-900'
+                                  } ${isDragging ? 'opacity-40 scale-[0.97]' : 'hover:-translate-y-0.5 hover:shadow-md'} ${pending ? 'opacity-70 pointer-events-none' : ''
+                                  }`}
                               >
                                 {pending && (
                                   <Loader2 className="absolute top-2 right-2 w-3.5 h-3.5 animate-spin text-slate-400" />

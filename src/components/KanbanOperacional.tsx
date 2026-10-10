@@ -23,6 +23,8 @@ interface KanbanOperacionalProps {
   projects: RedmineProject[];
   trackers: RedmineTracker[];
   operationalTrackerIds: number[];
+  /** Status IDs actually used by each tracker in Redmine (tracker id -> status ids) */
+  trackerStatusIds?: Record<number, number[]>;
   statusMapping: StatusMapping;
   pendingIssueIds: Set<number>;
   columnOrder?: number[];
@@ -38,6 +40,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   projects,
   trackers,
   operationalTrackerIds,
+  trackerStatusIds = {},
   statusMapping,
   pendingIssueIds,
   columnOrder,
@@ -207,7 +210,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
         return Array.from(map.values()).map((p) => ({
           key: `t-${trackerId}-project-${p.id}`,
           title: (
-            <span className="flex items-center gap-2 text-sm font-bold text-white tracking-tight">
+            <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
               <FolderGit2 className="w-4 h-4 text-rose-400" />
               <span>{p.name}</span>
             </span>
@@ -398,11 +401,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('compact')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'compact'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-blue-500'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'compact'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
                 title="Colunas compactas (224px) - ideal para múltiplos status"
               >
                 Compacta
@@ -410,11 +412,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('normal')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'normal'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-blue-500'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'normal'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
                 title="Colunas padrão (272px)"
               >
                 Padrão
@@ -422,11 +423,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('wide')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  columnDensity === 'wide'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-blue-500'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'wide'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
                 title="Colunas amplas (320px)"
               >
                 Ampla
@@ -439,33 +439,30 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setGroupBy('none')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  groupBy === 'none'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-blue-500'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'none'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
               >
                 Nenhum
               </button>
               <button
                 type="button"
                 onClick={() => setGroupBy('project')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  groupBy === 'project'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-blue-500'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'project'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
               >
                 Por Projeto
               </button>
               <button
                 type="button"
                 onClick={() => setGroupBy('assignee')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  groupBy === 'assignee'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-blue-500'
-                }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'assignee'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-blue-500'
+                  }`}
               >
                 Por Responsável
               </button>
@@ -546,11 +543,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                onlyBlocked
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                  : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-              }`}
+              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
+                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
             >
               <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
               <span>Itens Bloqueados</span>
@@ -575,20 +571,18 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           <button
             type="button"
             onClick={() => setSelectedTrackerId('all')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-              selectedTrackerId === 'all'
-                ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${selectedTrackerId === 'all'
+              ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
           >
             <Layers className="w-3.5 h-3.5" />
             <span>Todos os Trackers</span>
             <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                selectedTrackerId === 'all'
-                  ? 'bg-rose-700/80 text-white'
-                  : 'bg-slate-800 text-slate-400'
-              }`}
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${selectedTrackerId === 'all'
+                ? 'bg-rose-700/80 text-white'
+                : 'bg-slate-800 text-slate-400'
+                }`}
             >
               {operationalIssues.length}
             </span>
@@ -604,20 +598,18 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                 key={t.id}
                 type="button"
                 onClick={() => setSelectedTrackerId(t.id)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${
-                  isSelected
-                    ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50 font-semibold'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${isSelected
+                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50 font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
               >
                 <Tag className="w-3.5 h-3.5" />
                 <span>{t.name}</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isSelected
-                      ? 'bg-rose-700/80 text-white'
-                      : 'bg-slate-800 text-slate-400'
-                  }`}
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isSelected
+                    ? 'bg-rose-700/80 text-white'
+                    : 'bg-slate-800 text-slate-400'
+                    }`}
                 >
                   {count}
                 </span>
@@ -641,9 +633,22 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           // Issues specific to this tracker matching active filters
           const trackerIssues = operationalIssues.filter((i) => i.tracker.id === tracker.id);
 
-          // Build columns specific to this tracker with all columns (even without tasks in that state)
+          // Statuses belonging STRICTLY to this tracker:
+          // 1) statuses discovered in Redmine for this tracker; 2) current status of its issues;
+          // 3) allowed_statuses (workflow) of its issues. Never fall back to all statuses.
+          const trackerStatusIdSet = new Set<number>(trackerStatusIds[tracker.id] || []);
+          issues.forEach((issue) => {
+            if (issue.tracker.id !== tracker.id) return;
+            if (issue.status?.id) trackerStatusIdSet.add(issue.status.id);
+            issue.allowed_statuses?.forEach((st) => {
+              if (st?.id) trackerStatusIdSet.add(st.id);
+            });
+          });
+          const trackerStatuses = statuses.filter((s) => trackerStatusIdSet.has(s.id));
+
+          // Build columns specific to this tracker with only its statuses
           const trackerColumns = buildColumns(
-            statuses,
+            trackerStatuses,
             statusMapping,
             trackerIssues,
             columnOrder
@@ -697,7 +702,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                       <button
                         type="button"
                         onClick={() => setSelectedTrackerId(tracker.id)}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent hover:border-slate-700 transition-all"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-blue-500 hover:bg-slate-800 border border-transparent hover:border-slate-700 transition-all"
                         title={`Focar somente no tracker ${tracker.name}`}
                       >
                         <Maximize2 className="w-3 h-3 text-rose-400" />
@@ -708,7 +713,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                       <button
                         type="button"
                         onClick={() => setSelectedTrackerId('all')}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-rose-300 hover:text-white hover:bg-rose-950/40 border border-rose-900/50 transition-all"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-rose-300 hover:text-blue-500 hover:bg-rose-950/40 border border-rose-900/50 transition-all"
                       >
                         <Layers className="w-3 h-3 text-rose-400" />
                         <span>Ver todos os trackers</span>
@@ -719,7 +724,12 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               )}
 
               {/* Kanban Board do Tracker */}
-              {!isCollapsed && (
+              {!isCollapsed && trackerColumns.length === 0 && (
+                <p className="p-4 text-xs text-slate-500 italic text-center">
+                  Nenhum status identificado para este tracker ainda.
+                </p>
+              )}
+              {!isCollapsed && trackerColumns.length > 0 && (
                 <KanbanBoard
                   lanes={trackerLanes}
                   columns={trackerColumns}
@@ -732,7 +742,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                   onMoveColumn={
                     onUpdateColumnOrder
                       ? (statusId, direction) =>
-                          handleMoveColumn(trackerColumns, statusId, direction)
+                        handleMoveColumn(trackerColumns, statusId, direction)
                       : undefined
                   }
                   onSelectIssue={onSelectIssue}

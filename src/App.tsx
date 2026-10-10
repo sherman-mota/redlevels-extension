@@ -65,6 +65,8 @@ export default function App() {
   const [customFields, setCustomFields] = useState<RedmineCustomFieldDef[]>([]);
   const [issues, setIssues] = useState<RedmineIssue[]>([]);
   const [inboxIds, setInboxIds] = useState<InboxIds>({ assigned: [], watched: [] });
+  // Status IDs actually used by each tracker in Redmine (tracker id -> status ids)
+  const [trackerStatusIds, setTrackerStatusIds] = useState<Record<number, number[]>>({});
 
   // Navigation state
   const [currentTab, setCurrentTab] = useState<'inbox' | 'operacional' | 'tatico' | 'estrategico' | 'configuracao'>('operacional');
@@ -213,6 +215,26 @@ export default function App() {
       loadData();
     }
   }, [configLoaded, config.isConfigured, config.isDemoMode, loadData]);
+
+  // Discover each operational tracker's status set (so Kanbans never mix statuses across trackers)
+  const operationalTrackerKey = (config.operationalTrackerIds || []).join(',');
+  useEffect(() => {
+    if (trackers.length === 0) return;
+    const ids = config.operationalTrackerIds?.length
+      ? config.operationalTrackerIds
+      : trackers.map((t) => t.id);
+    let cancelled = false;
+    client
+      .getTrackerStatusIds(ids)
+      .then((map) => {
+        if (!cancelled) setTrackerStatusIds(map);
+      })
+      .catch((e) => console.warn('Erro ao descobrir status por tracker:', e));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, trackers, operationalTrackerKey]);
 
   // Handle configuration updates
   const handleUpdateConfig = async (updates: Partial<RedlevelsConfig>) => {
@@ -653,6 +675,7 @@ export default function App() {
                 projects={projects}
                 trackers={trackers}
                 operationalTrackerIds={config.operationalTrackerIds}
+                trackerStatusIds={trackerStatusIds}
                 statusMapping={config.operationalStatusMapping || config.statusMapping}
                 pendingIssueIds={pendingIssueIds}
                 columnOrder={config.operationalColumnOrder}

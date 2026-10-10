@@ -281,6 +281,39 @@ export class RedmineClient {
     return { success: true, data: mergeIssues(open.data || [], closed.data || []) };
   }
 
+  /**
+   * Discovers the statuses actually used by each tracker (any status, including closed),
+   * based on the most recently updated issues of that tracker. Redmine has no public
+   * workflow API, so this is the most reliable way to know a tracker's status set.
+   */
+  async getTrackerStatusIds(trackerIds: number[]): Promise<Record<number, number[]>> {
+    const result: Record<number, number[]> = {};
+    if (trackerIds.length === 0) return result;
+
+    if (this.isDemo) {
+      const demo = await loadDemoIssues();
+      trackerIds.forEach((tid) => {
+        result[tid] = Array.from(new Set(demo.filter((i) => i.tracker.id === tid).map((i) => i.status.id)));
+      });
+      return result;
+    }
+
+    await Promise.all(
+      trackerIds.map(async (tid) => {
+        const res = await this.requestAll<RedmineIssue>(
+          '/issues.json',
+          'issues',
+          { tracker_id: tid, status_id: '*', sort: 'updated_on:desc' },
+          300
+        );
+        if (res.success && res.data) {
+          result[tid] = Array.from(new Set(res.data.map((i) => i.status.id)));
+        }
+      })
+    );
+    return result;
+  }
+
   /** Open issues assigned to / watched by the current user. */
   async getInbox(user: RedmineUser): Promise<RedmineApiResult<{ ids: InboxIds; issues: RedmineIssue[] }>> {
     if (this.isDemo) {
