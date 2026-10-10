@@ -117,6 +117,10 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
     done: 'all',
   });
 
+  // Section 6: Layout mode ('2col' | '4col' | 'tabs')
+  const [statusMapperLayout, setStatusMapperLayout] = useState<'2col' | '4col' | 'tabs'>('2col');
+  const [selectedColumnTab, setSelectedColumnTab] = useState<KanbanColumnKey>('backlog');
+
   // Derived active mapping based on active subtab (operacional or tático)
   const activeMapping = useMemo(
     () => (activeMappingTab === 'operacional' ? operationalStatusMapping : tacticalStatusMapping),
@@ -618,9 +622,9 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             type="button"
             onClick={handleTestConnection}
             disabled={isTesting}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-black text-xs font-semibold border border-slate-700 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors disabled:opacity-50"
           >
-            {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-black" />}
+            {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-400" />}
             <span>Testar Conexão</span>
           </button>
         </div>
@@ -703,7 +707,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                 type="button"
                 onClick={() => setOpTrackerFilterMode('all')}
                 className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${opTrackerFilterMode === 'all'
-                  ? 'bg-slate-800 text-blue font-semibold'
+                  ? 'bg-slate-800 text-blue-500 font-semibold'
                   : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
                   }`}
               >
@@ -781,7 +785,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                       key={t.id}
                       onClick={() => toggleOperationalTracker(t.id)}
                       className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition-colors ${isChecked
-                        ? 'bg-rose-950/40 border-rose-800 text-blue'
+                        ? 'bg-rose-950/40 border-rose-800 text-blue-500'
                         : 'bg-slate-950/50 border-slate-800/80 text-slate-400 hover:text-slate-200'
                         }`}
                     >
@@ -790,14 +794,14 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => { }}
-                          className="w-4 h-4 rounded text-blue-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer shrink-0"
+                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer shrink-0"
                         />
                         <span className="font-medium truncate">{t.name}</span>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isChecked && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-rose-500/20 text-blue-300 border border-rose-500/40">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
                             ✓ Operacional
                           </span>
                         )}
@@ -885,7 +889,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                 type="button"
                 onClick={() => setTacTrackerFilterMode('all')}
                 className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${tacTrackerFilterMode === 'all'
-                  ? 'bg-slate-800 text-blue font-semibold'
+                  ? 'bg-slate-800 text-blue-500 font-semibold'
                   : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
                   }`}
               >
@@ -963,7 +967,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                       key={t.id}
                       onClick={() => toggleTacticalTracker(t.id)}
                       className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition-colors ${isChecked
-                        ? 'bg-purple-950/40 border-purple-800 text-blue'
+                        ? 'bg-purple-950/40 border-purple-800 text-white'
                         : 'bg-slate-950/50 border-slate-800/80 text-slate-400 hover:text-slate-200'
                         }`}
                     >
@@ -1069,7 +1073,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             </select>
 
             {strategicCustomFieldId ? (
-              <p className="text-[11px] text-emerald-400 flex items-center gap-1.5 pt-0.5">
+              <p className="text-[11px] text-blue-500 flex items-center gap-1.5 pt-0.5">
                 <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                 <span>
                   Campo ativo: <strong>{customFields.find((c) => c.id === strategicCustomFieldId)?.name || `#${strategicCustomFieldId}`}</strong> (ID #{strategicCustomFieldId})
@@ -1148,7 +1152,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                 type="button"
                 onClick={() => setBlockedFieldFilterMode('all')}
                 className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${blockedFieldFilterMode === 'all'
-                  ? 'bg-slate-800 text-blue font-semibold'
+                  ? 'bg-slate-800 text-blue-500 font-semibold'
                   : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800/80'
                   }`}
               >
@@ -1196,7 +1200,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                         toggleBlockedCustomField(cf.id);
                       }}
                       className={`flex items-center justify-between p-2 rounded-xl border text-xs cursor-pointer transition-colors ${isChecked
-                        ? 'bg-rose-950/40 border-rose-800/80 text-white'
+                        ? 'bg-rose-950/40 border-rose-800/80 text-blue-500'
                         : 'bg-slate-950/40 border-slate-800/60 text-slate-300 hover:border-slate-700'
                         }`}
                     >
@@ -1204,7 +1208,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => {}}
+                          onChange={() => { }}
                           className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer pointer-events-none"
                         />
                         <span className="font-medium truncate">{cf.name}</span>
@@ -1221,7 +1225,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
 
       {/* Requisito 6: Mapeador do status no Redmine com colunas do Kanban */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 text-rose-400">
               <Kanban className="w-4 h-4" />
@@ -1232,43 +1236,139 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             </p>
           </div>
 
-          {/* Sub-tabs selector: Operacional vs Tático */}
-          <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setActiveMappingTab('operacional')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeMappingTab === 'operacional'
-                ? 'bg-rose-500 text-blue shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-                }`}
-            >
-              Nível Operacional
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveMappingTab('tatico')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeMappingTab === 'tatico'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-                }`}
-            >
-              Nível Tático
-            </button>
+          <div className="flex items-center gap-2.5 flex-wrap self-start lg:self-auto">
+            {/* Layout Mode Selector */}
+            <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px]">
+              <span className="text-slate-400 px-2 font-medium">Layout:</span>
+              <button
+                type="button"
+                onClick={() => setStatusMapperLayout('2col')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${statusMapperLayout === '2col'
+                  ? activeMappingTab === 'operacional'
+                    ? 'bg-rose-600 text-white shadow-sm font-semibold'
+                    : 'bg-purple-600 text-white shadow-sm font-semibold'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
+                title="Visualização ampla em 2 colunas - espaçoso para ler nomes longos"
+              >
+                2 Colunas (Amplo)
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusMapperLayout('4col')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${statusMapperLayout === '4col'
+                  ? activeMappingTab === 'operacional'
+                    ? 'bg-rose-600 text-white shadow-sm font-semibold'
+                    : 'bg-purple-600 text-white shadow-sm font-semibold'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
+                title="Visualização lado a lado em 4 colunas"
+              >
+                4 Colunas
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusMapperLayout('tabs')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${statusMapperLayout === 'tabs'
+                  ? activeMappingTab === 'operacional'
+                    ? 'bg-rose-600 text-white shadow-sm font-semibold'
+                    : 'bg-purple-600 text-white shadow-sm font-semibold'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
+                title="Focar em uma coluna por vez em largura máxima"
+              >
+                1 Coluna (Foco)
+              </button>
+            </div>
+
+            {/* Sub-tabs selector: Operacional vs Tático */}
+            <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setActiveMappingTab('operacional')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeMappingTab === 'operacional'
+                  ? 'bg-rose-500 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+                  }`}
+              >
+                Nível Operacional
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveMappingTab('tatico')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeMappingTab === 'tatico'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+                  }`}
+              >
+                Nível Tático
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Informative indicator of active mapping level */}
         <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
           <span>Configurando fluxo para:</span>
-          <span className={`font-semibold px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wider ${activeMappingTab === 'operacional'
-            ? 'bg-rose-950/50 border-rose-800 text-blue'
-            : 'bg-purple-950/50 border-purple-800 text-black'
-            }`}>
+          <span
+            className={`font-semibold px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wider ${activeMappingTab === 'operacional'
+              ? 'bg-rose-950/50 border-rose-800 text-rose-300'
+              : 'bg-purple-950/50 border-purple-800 text-purple-300'
+              }`}
+          >
             {activeMappingTab === 'operacional' ? 'Tarefas Operacionais' : 'Tarefas Táticas'}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+        {/* Tab switcher when in 'tabs' single column focus mode */}
+        {statusMapperLayout === 'tabs' && (
+          <div className="flex items-center gap-1.5 p-1 bg-slate-950 border border-slate-800 rounded-xl overflow-x-auto">
+            {(
+              [
+                { key: 'backlog' as const, label: 'Backlog' },
+                { key: 'analysis' as const, label: 'Em Análise' },
+                { key: 'in_progress' as const, label: 'Em Andamento' },
+                { key: 'done' as const, label: 'Concluído' },
+              ]
+            ).map((s) => {
+              const count = (activeMapping[s.key] || []).length;
+              const isSelected = selectedColumnTab === s.key;
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setSelectedColumnTab(s.key)}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${isSelected
+                    ? activeMappingTab === 'operacional'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'bg-purple-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                    }`}
+                >
+                  <span>{s.label}</span>
+                  <span
+                    className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${isSelected
+                      ? 'bg-black/30 text-white'
+                      : 'bg-slate-900 border border-slate-800 text-slate-400'
+                      }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div
+          className={
+            statusMapperLayout === 'tabs'
+              ? 'grid grid-cols-1 gap-4 pt-1'
+              : statusMapperLayout === '2col'
+                ? 'grid grid-cols-1 md:grid-cols-2 gap-4 pt-1'
+                : 'grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4 pt-1'
+          }
+        >
           {(
             [
               { key: 'backlog' as const, label: 'Backlog', desc: 'Demandas novas e não priorizadas', chipColor: 'text-slate-300' },
@@ -1276,204 +1376,219 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
               { key: 'in_progress' as const, label: 'Em Andamento', desc: 'Em desenvolvimento ou execução', chipColor: 'text-amber-300' },
               { key: 'done' as const, label: 'Concluído', desc: 'Finalizadas ou fechadas', chipColor: 'text-emerald-300' },
             ]
-          ).map((col) => {
-            const mappedIds = activeMapping[col.key] || [];
-            const search = columnSearch[col.key]?.trim() || '';
-            const mode = columnFilterMode[col.key] || 'all';
-            const unmappedCount = statuses.filter((s) => !allMappedInActiveLevel.has(s.id)).length;
+          )
+            .filter((col) => statusMapperLayout !== 'tabs' || col.key === selectedColumnTab)
+            .map((col) => {
+              const mappedIds = activeMapping[col.key] || [];
+              const search = columnSearch[col.key]?.trim() || '';
+              const mode = columnFilterMode[col.key] || 'all';
+              const unmappedCount = statuses.filter((s) => !allMappedInActiveLevel.has(s.id)).length;
 
-            const filteredStatuses = statuses.filter((s) => {
-              const isChecked = mappedIds.includes(s.id);
-              const isUnmapped = !allMappedInActiveLevel.has(s.id);
+              const filteredStatuses = statuses.filter((s) => {
+                const isChecked = mappedIds.includes(s.id);
+                const isUnmapped = !allMappedInActiveLevel.has(s.id);
 
-              if (mode === 'selected' && !isChecked) return false;
-              if (mode === 'unmapped' && !isUnmapped) return false;
+                if (mode === 'selected' && !isChecked) return false;
+                if (mode === 'unmapped' && !isUnmapped) return false;
 
-              if (search) {
-                const matchName = s.name.toLowerCase().includes(search.toLowerCase());
-                const matchId = String(s.id).includes(search);
-                return matchName || matchId;
-              }
+                if (search) {
+                  const matchName = s.name.toLowerCase().includes(search.toLowerCase());
+                  const matchId = String(s.id).includes(search);
+                  return matchName || matchId;
+                }
 
-              return true;
-            });
+                return true;
+              });
 
-            return (
-              <div
-                key={col.key}
-                className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3 flex flex-col justify-between"
-              >
-                <div className="space-y-2.5">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-blue uppercase tracking-wider flex items-center gap-1.5">
-                        <span>{col.label}</span>
-                      </h4>
-                      <p className="text-[10px] text-slate-400">{col.desc}</p>
+              return (
+                <div
+                  key={col.key}
+                  className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3.5 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                          <span>{col.label}</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{col.desc}</p>
+                      </div>
+                      {mappedIds.length > 0 ? (
+                        <span
+                          className={`text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${activeMappingTab === 'operacional'
+                            ? 'bg-rose-950/60 border-rose-800 text-rose-300'
+                            : 'bg-purple-950/60 border-purple-800 text-purple-300'
+                            }`}
+                        >
+                          {mappedIds.length} {mappedIds.length === 1 ? 'status' : 'status'}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-500">
+                          0
+                        </span>
+                      )}
                     </div>
-                    {mappedIds.length > 0 ? (
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${activeMappingTab === 'operacional'
-                        ? 'bg-rose-950/60 border-rose-800 text-rose-300'
-                        : 'bg-purple-950/60 border-purple-800 text-purple-300'
-                        }`}>
-                        {mappedIds.length}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-500">
-                        0
-                      </span>
-                    )}
-                  </div>
 
-                  {/* Filter 1: Search status input */}
-                  <div className="relative">
-                    <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) =>
-                        setColumnSearch((prev) => ({ ...prev, [col.key]: e.target.value }))
-                      }
-                      placeholder="Filtrar status..."
-                      className="w-full pl-7 pr-6 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
-                    />
-                    {search && (
+                    {/* Filter 1: Search status input */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={(e) =>
+                          setColumnSearch((prev) => ({ ...prev, [col.key]: e.target.value }))
+                        }
+                        placeholder="Filtrar status por nome ou #ID..."
+                        className="w-full pl-8 pr-6 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
+                      />
+                      {search && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setColumnSearch((prev) => ({ ...prev, [col.key]: '' }))
+                          }
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                          title="Limpar busca"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filter 2: Mode toggle pills (Todos, Mapeados, Livres) */}
+                    <div className="flex items-center gap-1.5 text-[11px] overflow-x-auto pb-0.5">
                       <button
                         type="button"
-                        onClick={() =>
-                          setColumnSearch((prev) => ({ ...prev, [col.key]: '' }))
-                        }
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                        title="Limpar busca"
+                        onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'all' }))}
+                        className={`px-2.5 py-1 rounded-lg transition-all shrink-0 ${mode === 'all'
+                          ? 'bg-slate-800 text-blue-500 font-semibold'
+                          : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
+                          }`}
                       >
-                        <X className="w-3 h-3" />
+                        Todos ({statuses.length})
                       </button>
-                    )}
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'selected' }))}
+                        className={`px-2.5 py-1 rounded-lg transition-all shrink-0 ${mode === 'selected'
+                          ? activeMappingTab === 'operacional'
+                            ? 'bg-rose-950 border border-rose-700/80 text-rose-200 font-semibold'
+                            : 'bg-purple-950 border border-purple-700/80 text-purple-200 font-semibold'
+                          : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
+                          }`}
+                      >
+                        Mapeados ({mappedIds.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'unmapped' }))}
+                        className={`px-2.5 py-1 rounded-lg transition-all shrink-0 ${mode === 'unmapped'
+                          ? 'bg-amber-950 border border-amber-700/80 text-amber-200 font-semibold'
+                          : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
+                          }`}
+                      >
+                        Livres ({unmappedCount})
+                      </button>
+                    </div>
 
-                  {/* Filter 2: Mode toggle pills (Todos, Mapeados, Livres) */}
-                  <div className="flex items-center gap-1 text-[10px] overflow-x-auto pb-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'all' }))}
-                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${mode === 'all'
-                        ? 'bg-slate-800 text-blue font-semibold'
-                        : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
-                        }`}
-                    >
-                      Todos ({statuses.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'selected' }))}
-                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${mode === 'selected'
-                        ? activeMappingTab === 'operacional'
-                          ? 'bg-rose-950 border border-rose-700/80 text-rose-200 font-semibold'
-                          : 'bg-purple-950 border border-purple-700/80 text-purple-200 font-semibold'
-                        : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
-                        }`}
-                    >
-                      Mapeados ({mappedIds.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'unmapped' }))}
-                      className={`px-2 py-0.5 rounded-md transition-all shrink-0 ${mode === 'unmapped'
-                        ? 'bg-amber-950 border border-amber-700/80 text-amber-200 font-semibold'
-                        : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800/80'
-                        }`}
-                    >
-                      Livres ({unmappedCount})
-                    </button>
-                  </div>
+                    {/* Statuses Checklist */}
+                    <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1 pt-0.5 scrollbar-thin">
+                      {filteredStatuses.length === 0 ? (
+                        <div className="p-4 text-center rounded-xl bg-slate-900/40 border border-slate-800/60 space-y-1.5">
+                          <p className="text-xs text-slate-500 italic">
+                            Nenhum status encontrado para o filtro.
+                          </p>
+                          {(search || mode !== 'all') && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setColumnSearch((prev) => ({ ...prev, [col.key]: '' }));
+                                setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'all' }));
+                              }}
+                              className="text-[11px] text-rose-400 hover:text-rose-300 underline font-medium"
+                            >
+                              Limpar filtros
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        filteredStatuses.map((s) => {
+                          const isChecked = mappedIds.includes(s.id);
+                          const otherCol = !isChecked ? statusToColumnMap.get(s.id) : undefined;
+                          const otherColMeta = otherCol ? COLUMN_META[otherCol] : undefined;
 
-                  {/* Statuses Checklist */}
-                  <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5 pt-0.5">
-                    {filteredStatuses.length === 0 ? (
-                      <div className="p-3 text-center rounded-xl bg-slate-900/40 border border-slate-800/60 space-y-1">
-                        <p className="text-[11px] text-slate-500 italic">
-                          Nenhum status encontrado para o filtro.
-                        </p>
-                        {(search || mode !== 'all') && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setColumnSearch((prev) => ({ ...prev, [col.key]: '' }));
-                              setColumnFilterMode((prev) => ({ ...prev, [col.key]: 'all' }));
-                            }}
-                            className="text-[10px] text-blue-400 hover:text-blue-300 underline"
-                          >
-                            Limpar filtros
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      filteredStatuses.map((s) => {
-                        const isChecked = mappedIds.includes(s.id);
-                        const otherCol = !isChecked ? statusToColumnMap.get(s.id) : undefined;
-                        const otherColMeta = otherCol ? COLUMN_META[otherCol] : undefined;
-
-                        return (
-                          <label
-                            key={s.id}
-                            onClick={() => toggleStatusForColumn(col.key, s.id)}
-                            className={`p-2 rounded-lg border cursor-pointer flex items-center justify-between gap-2 text-xs transition-colors ${isChecked
-                              ? activeMappingTab === 'operacional'
-                                ? 'bg-rose-950/40 border-rose-800 text-blue-200'
-                                : 'bg-purple-950/40 border-purple-800 text-purple-200'
-                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                              }`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
+                          return (
+                            <label
+                              key={s.id}
+                              onClick={() => toggleStatusForColumn(col.key, s.id)}
+                              className={`p-2.5 rounded-xl border cursor-pointer flex items-start gap-3 text-xs transition-all ${isChecked
+                                ? activeMappingTab === 'operacional'
+                                  ? 'bg-rose-950/40 border-rose-800/90 text-white shadow-sm ring-1 ring-rose-800/30'
+                                  : 'bg-purple-950/40 border-purple-800/90 text-white shadow-sm ring-1 ring-purple-800/30'
+                                : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800/50'
+                                }`}
+                            >
                               <input
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={() => { }}
-                                className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer shrink-0"
+                                className="w-4 h-4 mt-0.5 rounded text-rose-600 focus:ring-rose-500 border-slate-700 bg-slate-950 cursor-pointer shrink-0"
                               />
-                              <span className="truncate">{s.name}</span>
-                            </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <span
+                                    className="font-medium text-xs text-slate-100 leading-snug break-words"
+                                    title={s.name}
+                                  >
+                                    {s.name}
+                                  </span>
+                                  <span className="font-mono text-[10px] text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800/80 shrink-0">
+                                    #{s.id}
+                                  </span>
+                                </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
-                              {otherColMeta && (
-                                <span className="text-[9px] px-1 py-0.5 rounded bg-slate-800/90 text-slate-400 border border-slate-700/60">
-                                  em: {otherColMeta.label}
-                                </span>
-                              )}
-                              {s.is_closed && (
-                                <span className="text-[9px] px-1 py-0.5 rounded bg-slate-800 text-slate-500">
-                                  fechado
-                                </span>
-                              )}
-                              <span className="font-mono text-[9px] text-slate-500">#{s.id}</span>
-                            </div>
-                          </label>
-                        );
-                      })
-                    )}
+                                {(otherColMeta || s.is_closed) && (
+                                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                                    {otherColMeta && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-800/90 text-slate-300 border border-slate-700/60 font-medium">
+                                        mapeado em: <strong className="text-blue-500">{otherColMeta.label}</strong>
+                                      </span>
+                                    )}
+                                    {s.is_closed && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400 font-medium border border-slate-700/40">
+                                        fechado no Redmine
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
+
+                  {/* Card Footer: Quick clear column */}
+                  {mappedIds.length > 0 && (
+                    <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">
+                        {mappedIds.length} {mappedIds.length === 1 ? 'mapeado' : 'mapeados'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => clearColumnMapping(col.key)}
+                        className="text-rose-400 hover:text-rose-300 font-medium transition-colors"
+                        title="Remover todos os status desta coluna"
+                      >
+                        Desmarcar todos
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                {/* Card Footer: Quick clear column */}
-                {mappedIds.length > 0 && (
-                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px]">
-                    <span className="text-slate-500">
-                      {mappedIds.length} {mappedIds.length === 1 ? 'mapeado' : 'mapeados'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => clearColumnMapping(col.key)}
-                      className="text-rose-400 hover:text-rose-300 font-medium transition-colors"
-                      title="Remover todos os status desta coluna"
-                    >
-                      Desmarcar todos
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </div>
 
@@ -1537,7 +1652,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
                           {idx + 1}
                         </span>
                         <span className={`w-2 h-2 rounded-full shrink-0 ${meta?.dot || 'bg-slate-500'}`} />
-                        <span className="font-semibold text-black truncate">{col.status.name}</span>
+                        <span className="font-semibold text-blue-500 truncate">{col.status.name}</span>
                         {meta && (
                           <span className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded border ${meta.chip}`}>
                             {meta.label}
@@ -1722,11 +1837,10 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
           <button
             type="submit"
             disabled={isSaving}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-xs shadow-md transition-all disabled:opacity-50 ${
-              savedSuccess
-                ? 'bg-emerald-600 text-white shadow-emerald-900/30 ring-2 ring-emerald-400/40'
-                : 'bg-gradient-to-r from-red-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-rose-900/30'
-            }`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-xs shadow-md transition-all disabled:opacity-50 ${savedSuccess
+              ? 'bg-emerald-600 text-white shadow-emerald-900/30 ring-2 ring-emerald-400/40'
+              : 'bg-gradient-to-r from-red-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-rose-900/30'
+              }`}
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : savedSuccess ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
             <span>{savedSuccess ? 'Configurações Salvas!' : 'Salvar Alterações'}</span>

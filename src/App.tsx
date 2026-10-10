@@ -588,7 +588,7 @@ export default function App() {
 
       <main
         className={`flex-1 w-full mx-auto py-5 transition-all ${
-          currentTab === 'operacional' || currentTab === 'tatico'
+          currentTab === 'operacional' || currentTab === 'tatico' || currentTab === 'configuracao'
             ? 'max-w-none px-3 sm:px-6 lg:px-8'
             : 'max-w-7xl px-3 sm:px-6'
         }`}

@@ -1,0 +1,173 @@
+{
+  "version": "1.0.0",
+  "exportedAt": "2026-10-10T00:31:24.939Z",
+  "config": {
+    "redmineUrl": "https://redmine.tjce.jus.br",
+    "apiKey": "f2b0196305c15252ff7f8c8c74c76d6b94567227",
+    "isDemoMode": false,
+    "isConfigured": true,
+    "operationalTrackerIds": [
+      174,
+      187,
+      188,
+      206
+    ],
+    "tacticalTrackerIds": [
+      180
+    ],
+    "strategicCustomFieldId": 570,
+    "blockedCustomFieldId": 551,
+    "blockedCustomFieldIds": [
+      551
+    ],
+    "blockedCustomFieldValueTrigger": "Sim",
+    "statusMapping": {
+      "backlog": [
+        296,
+        394
+      ],
+      "analysis": [
+        285,
+        286,
+        298,
+        287,
+        395,
+        383,
+        382,
+        381,
+        380,
+        508
+      ],
+      "in_progress": [
+        4,
+        300,
+        314,
+        302,
+        305,
+        299,
+        294,
+        308,
+        292,
+        312,
+        288,
+        385,
+        386,
+        387,
+        388,
+        389,
+        390,
+        403,
+        391,
+        415,
+        392,
+        384,
+        396,
+        397,
+        398,
+        399,
+        400,
+        509,
+        517,
+        518,
+        511,
+        519,
+        512,
+        513,
+        514,
+        515,
+        510
+      ],
+      "done": [
+        307,
+        393,
+        516,
+        521
+      ]
+    },
+    "operationalStatusMapping": {
+      "backlog": [
+        296,
+        394
+      ],
+      "analysis": [
+        285,
+        286,
+        298,
+        287,
+        395,
+        383,
+        382,
+        381,
+        380,
+        508
+      ],
+      "in_progress": [
+        4,
+        300,
+        314,
+        302,
+        305,
+        299,
+        294,
+        308,
+        292,
+        312,
+        288,
+        385,
+        386,
+        387,
+        388,
+        389,
+        390,
+        403,
+        391,
+        415,
+        392,
+        384,
+        396,
+        397,
+        398,
+        399,
+        400,
+        509,
+        517,
+        518,
+        511,
+        519,
+        512,
+        513,
+        514,
+        515,
+        510
+      ],
+      "done": [
+        307,
+        393,
+        516,
+        521
+      ]
+    },
+    "tacticalStatusMapping": {
+      "backlog": [
+        326
+      ],
+      "analysis": [
+        327
+      ],
+      "in_progress": [
+        4,
+        328
+      ],
+      "done": [
+        329
+      ]
+    },
+    "theme": "redmine",
+    "operationalColumnOrder": [],
+    "tacticalColumnOrder": [
+      326,
+      327,
+      328
+    ]
+  }
+}

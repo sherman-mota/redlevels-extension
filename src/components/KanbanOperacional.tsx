@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Kanban,
   AlertTriangle,
@@ -7,9 +7,14 @@ import {
   Search,
   X,
   ChevronsUpDown,
+  Layers,
+  Tag,
+  ChevronDown,
+  ChevronRight,
+  Maximize2,
 } from 'lucide-react';
 import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping } from '../types/redmine';
-import { KanbanBoard, buildColumns, BoardLane } from './KanbanBoard';
+import { KanbanBoard, buildColumns, BoardLane, BoardColumn } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 
 interface KanbanOperacionalProps {
@@ -49,7 +54,41 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   const [filterParentId, setFilterParentId] = useState<string>('');
   const [groupBy, setGroupBy] = useState<'none' | 'project' | 'assignee'>('none');
   const [collapsedLanes, setCollapsedLanes] = useState<Record<string, boolean>>({});
+  const [collapsedTrackers, setCollapsedTrackers] = useState<Record<number, boolean>>({});
   const [columnDensity, setColumnDensity] = useState<'compact' | 'normal' | 'wide'>('normal');
+
+  // Operational trackers list
+  const operationalTrackers = useMemo(() => {
+    let list = trackers.filter(
+      (t) => operationalTrackerIds.length === 0 || operationalTrackerIds.includes(t.id)
+    );
+
+    const map = new Map<number, RedmineTracker>();
+    list.forEach((t) => map.set(t.id, t));
+
+    // Also include trackers that appear in operational issues
+    issues.forEach((i) => {
+      if (
+        (operationalTrackerIds.length === 0 || operationalTrackerIds.includes(i.tracker.id)) &&
+        !map.has(i.tracker.id)
+      ) {
+        map.set(i.tracker.id, { id: i.tracker.id, name: i.tracker.name });
+      }
+    });
+
+    const result = Array.from(map.values());
+    if (operationalTrackerIds.length > 0) {
+      result.sort((a, b) => {
+        const idxA = operationalTrackerIds.indexOf(a.id);
+        const idxB = operationalTrackerIds.indexOf(b.id);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        return a.name.localeCompare(b.name, 'pt-BR');
+      });
+    } else {
+      result.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    }
+    return result;
+  }, [trackers, operationalTrackerIds, issues]);
 
   // Sorted projects alphabetically (including projects present in issues)
   const sortedProjects = useMemo(() => {
@@ -91,7 +130,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     }));
   }, [assignees]);
 
-  // Filter issues belonging to operational trackers
+  // Filter issues belonging to operational trackers matching active search & filters
   const operationalIssues = useMemo(() => {
     return issues.filter((issue) => {
       // Must be an operational tracker if any are configured
@@ -124,11 +163,6 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
         }
       }
 
-      // Tracker filter
-      if (selectedTrackerId !== 'all' && issue.tracker.id !== selectedTrackerId) {
-        return false;
-      }
-
       // Blocked filter
       if (onlyBlocked && !issue.is_blocked) {
         return false;
@@ -149,102 +183,100 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     searchQuery,
     selectedProjectIds,
     selectedAssignees,
-    selectedTrackerId,
     onlyBlocked,
     filterParentId,
   ]);
 
-  // Statuses that belong to operational task types
-  const operationalStatuses = useMemo(() => {
-    const allOperational = issues.filter(
-      (i) => operationalTrackerIds.length === 0 || operationalTrackerIds.includes(i.tracker.id)
-    );
-    if (allOperational.length === 0) return statuses;
+  // Map of statuses associated with each tracker.
+  // Each tracker's statuses are derived from all workspace issues belonging to that tracker.
+  const trackerStatusMap = useMemo(() => {
+    const map = new Map<number, RedmineStatus[]>();
 
-    const validStatusIds = new Set<number>();
-    allOperational.forEach((issue) => {
-      validStatusIds.add(issue.status.id);
-      issue.allowed_statuses?.forEach((st) => validStatusIds.add(st.id));
+    operationalTrackers.forEach((tracker) => {
+      // Find all workspace issues of this tracker
+      const trackerWorkspaceIssues = issues.filter((i) => i.tracker.id === tracker.id);
+      const validStatusIds = new Set<number>();
+
+      trackerWorkspaceIssues.forEach((issue) => {
+        if (issue.status?.id) validStatusIds.add(issue.status.id);
+        if (Array.isArray(issue.allowed_statuses)) {
+          issue.allowed_statuses.forEach((st) => {
+            if (st?.id) validStatusIds.add(st.id);
+          });
+        }
+      });
+
+      if (validStatusIds.size > 0) {
+        map.set(
+          tracker.id,
+          statuses.filter((s) => validStatusIds.has(s.id))
+        );
+      } else {
+        // Fallback: if no workspace issues exist yet for this tracker
+        map.set(tracker.id, statuses);
+      }
     });
 
-    if (validStatusIds.size === 0) return statuses;
-    return statuses.filter((s) => validStatusIds.has(s.id));
-  }, [issues, operationalTrackerIds, statuses]);
+    return map;
+  }, [operationalTrackers, issues, statuses]);
 
-  // Columns ordered by status mapping and columnOrder (only operational task statuses)
-  const columns = useMemo(
-    () => buildColumns(operationalStatuses, statusMapping, operationalIssues, columnOrder),
-    [operationalStatuses, statusMapping, operationalIssues, columnOrder]
+  // Swimlanes builder per tracker
+  const buildTrackerLanes = useCallback(
+    (trackerIssues: RedmineIssue[], trackerId: number): BoardLane[] => {
+      if (groupBy === 'project') {
+        const map = new Map<number, { id: number; name: string; issues: RedmineIssue[] }>();
+        trackerIssues.forEach((issue) => {
+          const pId = issue.project.id;
+          if (!map.has(pId)) {
+            map.set(pId, { id: pId, name: issue.project.name, issues: [] });
+          }
+          map.get(pId)!.issues.push(issue);
+        });
+
+        return Array.from(map.values()).map((p) => ({
+          key: `t-${trackerId}-project-${p.id}`,
+          title: (
+            <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
+              <FolderGit2 className="w-4 h-4 text-rose-400" />
+              <span>{p.name}</span>
+            </span>
+          ),
+          issues: p.issues,
+        }));
+      }
+
+      if (groupBy === 'assignee') {
+        const map = new Map<string, { name: string; issues: RedmineIssue[] }>();
+        trackerIssues.forEach((issue) => {
+          const aName = issue.assigned_to?.name || 'Não atribuído';
+          if (!map.has(aName)) {
+            map.set(aName, { name: aName, issues: [] });
+          }
+          map.get(aName)!.issues.push(issue);
+        });
+
+        const list = Array.from(map.values()).sort((a, b) => {
+          if (a.name === 'Não atribuído') return 1;
+          if (b.name === 'Não atribuído') return -1;
+          return a.name.localeCompare(b.name, 'pt-BR');
+        });
+
+        return list.map((a) => ({
+          key: `t-${trackerId}-assignee-${a.name}`,
+          title: (
+            <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
+              <User className="w-4 h-4 text-rose-400" />
+              <span>{a.name}</span>
+            </span>
+          ),
+          issues: a.issues,
+        }));
+      }
+
+      return [{ key: `t-${trackerId}-all`, issues: trackerIssues }];
+    },
+    [groupBy]
   );
-
-  const handleMoveColumn = (statusId: number, direction: 'left' | 'right') => {
-    if (!onUpdateColumnOrder) return;
-    const currentOrder = columns.map((c) => c.status.id);
-    const idx = currentOrder.indexOf(statusId);
-    if (idx === -1) return;
-    const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= currentOrder.length) return;
-    const nextOrder = [...currentOrder];
-    const temp = nextOrder[idx];
-    nextOrder[idx] = nextOrder[targetIdx];
-    nextOrder[targetIdx] = temp;
-    onUpdateColumnOrder(nextOrder);
-  };
-
-  // Swimlanes
-  const lanes = useMemo<BoardLane[]>(() => {
-    if (groupBy === 'project') {
-      const map = new Map<number, { id: number; name: string; issues: RedmineIssue[] }>();
-      operationalIssues.forEach((issue) => {
-        const pId = issue.project.id;
-        if (!map.has(pId)) {
-          map.set(pId, { id: pId, name: issue.project.name, issues: [] });
-        }
-        map.get(pId)!.issues.push(issue);
-      });
-
-      return Array.from(map.values()).map((p) => ({
-        key: `project-${p.id}`,
-        title: (
-          <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
-            <FolderGit2 className="w-4 h-4 text-rose-400" />
-            <span>{p.name}</span>
-          </span>
-        ),
-        issues: p.issues,
-      }));
-    }
-
-    if (groupBy === 'assignee') {
-      const map = new Map<string, { name: string; issues: RedmineIssue[] }>();
-      operationalIssues.forEach((issue) => {
-        const aName = issue.assigned_to?.name || 'Não atribuído';
-        if (!map.has(aName)) {
-          map.set(aName, { name: aName, issues: [] });
-        }
-        map.get(aName)!.issues.push(issue);
-      });
-
-      const list = Array.from(map.values()).sort((a, b) => {
-        if (a.name === 'Não atribuído') return 1;
-        if (b.name === 'Não atribuído') return -1;
-        return a.name.localeCompare(b.name, 'pt-BR');
-      });
-
-      return list.map((a) => ({
-        key: `assignee-${a.name}`,
-        title: (
-          <span className="flex items-center gap-2 text-sm font-bold text-blue-500 tracking-tight">
-            <User className="w-4 h-4 text-rose-400" />
-            <span>{a.name}</span>
-          </span>
-        ),
-        issues: a.issues,
-      }));
-    }
-
-    return [{ key: 'all', issues: operationalIssues }];
-  }, [groupBy, operationalIssues]);
 
   const handleToggleLaneCollapse = (laneKey: string) => {
     setCollapsedLanes((prev) => ({
@@ -253,21 +285,32 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     }));
   };
 
-  const allLanesCollapsed = useMemo(() => {
-    if (lanes.length <= 1) return false;
-    return lanes.every((l) => Boolean(collapsedLanes[l.key]));
-  }, [lanes, collapsedLanes]);
+  const handleToggleTrackerCollapse = (trackerId: number) => {
+    setCollapsedTrackers((prev) => ({
+      ...prev,
+      [trackerId]: !prev[trackerId],
+    }));
+  };
 
-  const toggleAllLanes = () => {
-    if (allLanesCollapsed) {
-      setCollapsedLanes({});
-    } else {
-      const next: Record<string, boolean> = {};
-      lanes.forEach((l) => {
-        next[l.key] = true;
-      });
-      setCollapsedLanes(next);
-    }
+  const handleMoveColumn = (
+    trackerCols: BoardColumn[],
+    statusId: number,
+    direction: 'left' | 'right'
+  ) => {
+    if (!onUpdateColumnOrder) return;
+    const currentOrder = trackerCols.map((c) => c.status.id);
+    const idx = currentOrder.indexOf(statusId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= currentOrder.length) return;
+    const nextLocalOrder = [...currentOrder];
+    const temp = nextLocalOrder[idx];
+    nextLocalOrder[idx] = nextLocalOrder[targetIdx];
+    nextLocalOrder[targetIdx] = temp;
+
+    const baseOrder = columnOrder && columnOrder.length > 0 ? [...columnOrder] : [];
+    const remaining = baseOrder.filter((id) => !nextLocalOrder.includes(id));
+    onUpdateColumnOrder([...nextLocalOrder, ...remaining]);
   };
 
   const activeFiltersCount =
@@ -287,6 +330,77 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     setFilterParentId('');
   };
 
+  // Render card UI
+  const renderCard = (issue: RedmineIssue) => (
+    <>
+      {/* Top Bar: ID, Tracker, Parent ID */}
+      <div className="flex items-center justify-between gap-1.5 mb-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-mono text-[11px] font-bold text-rose-300 bg-rose-950/50 px-1.5 py-0.2 rounded border border-rose-900/50">
+            #{issue.id}
+          </span>
+          <span className="text-[10px] font-medium text-slate-300 bg-slate-800/70 px-1.5 py-0.2 rounded">
+            {issue.tracker.name}
+          </span>
+        </div>
+
+        {/* ID da tarefa pai */}
+        {issue.parent && (
+          <span
+            className="font-mono text-[10px] font-semibold text-blue-300 bg-blue-950/50 px-1.5 py-0.2 rounded border border-blue-900/50"
+            title={`Tarefa Pai #${issue.parent.id}`}
+          >
+            Pai: #{issue.parent.id}
+          </span>
+        )}
+      </div>
+
+      {/* Sinalização de impedimento */}
+      {issue.is_blocked && (
+        <div className="mb-2 p-1.5 rounded-lg bg-rose-950/80 border border-rose-700/80 flex items-start gap-1.5 text-[11px] text-rose-200">
+          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
+          <div className="flex-1 leading-tight">
+            <strong className="block text-[10px] font-bold uppercase text-rose-300">
+              Impedimento
+            </strong>
+            <span className="text-slate-300 line-clamp-2">
+              {issue.block_reason || 'Item bloqueado'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Assunto */}
+      <h5 className="text-xs font-semibold text-slate-100 group-hover:text-white line-clamp-2 leading-snug mb-2.5">
+        {issue.subject}
+      </h5>
+
+      {/* Bottom row: Projeto & Responsável */}
+      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/80 gap-2">
+        <span className="truncate flex items-center gap-1 max-w-[55%]" title={issue.project.name}>
+          <FolderGit2 className="w-3 h-3 text-slate-500 shrink-0" />
+          <span className="truncate">{issue.project.name}</span>
+        </span>
+
+        <span
+          className="truncate flex items-center gap-1 font-medium text-slate-300 max-w-[45%]"
+          title={issue.assigned_to?.name || 'Não atribuído'}
+        >
+          <User className="w-3 h-3 text-rose-400 shrink-0" />
+          <span className="truncate">{issue.assigned_to?.name || 'Sem resp.'}</span>
+        </span>
+      </div>
+    </>
+  );
+
+  // Filter trackers to display: all operational trackers or single selected tracker
+  const displayedTrackers = useMemo(() => {
+    if (selectedTrackerId === 'all') {
+      return operationalTrackers;
+    }
+    return operationalTrackers.filter((t) => t.id === selectedTrackerId);
+  }, [operationalTrackers, selectedTrackerId]);
+
   return (
     <div className="space-y-4">
       {/* Top Banner & Control Bar */}
@@ -301,7 +415,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               </span>
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Kanban de tarefas operacionais. Arraste cards para atualizar o status instantaneamente.
+              Kanban de tarefas operacionais individualizado por Tracker com status específicos. Arraste cards para atualizar o status.
             </p>
           </div>
 
@@ -313,10 +427,11 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('compact')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'compact'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-blue-500'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  columnDensity === 'compact'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-blue-500'
+                }`}
                 title="Colunas compactas (224px) - ideal para múltiplos status"
               >
                 Compacta
@@ -324,10 +439,11 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('normal')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'normal'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-blue-500'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  columnDensity === 'normal'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-blue-500'
+                }`}
                 title="Colunas padrão (272px)"
               >
                 Padrão
@@ -335,10 +451,11 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setColumnDensity('wide')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${columnDensity === 'wide'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-blue-500'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  columnDensity === 'wide'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-blue-500'
+                }`}
                 title="Colunas amplas (320px)"
               >
                 Ampla
@@ -351,47 +468,37 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               <button
                 type="button"
                 onClick={() => setGroupBy('none')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'none'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-blue-500'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  groupBy === 'none'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-blue-500'
+                }`}
               >
                 Nenhum
               </button>
               <button
                 type="button"
                 onClick={() => setGroupBy('project')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'project'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-blue-500'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  groupBy === 'project'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-blue-500'
+                }`}
               >
                 Por Projeto
               </button>
               <button
                 type="button"
                 onClick={() => setGroupBy('assignee')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${groupBy === 'assignee'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-blue-500'
-                  }`}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  groupBy === 'assignee'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-blue-500'
+                }`}
               >
                 Por Responsável
               </button>
             </div>
-
-            {/* Collapse/Expand All Button when grouped */}
-            {lanes.length > 1 && (
-              <button
-                type="button"
-                onClick={toggleAllLanes}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 hover:text-white transition-all shadow-sm"
-                title={allLanesCollapsed ? 'Expandir todos os grupos' : 'Colapsar todos os grupos'}
-              >
-                <ChevronsUpDown className="w-3.5 h-3.5 text-rose-400" />
-                <span>{allLanesCollapsed ? 'Expandir Todos' : 'Colapsar Todos'}</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -433,7 +540,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             />
           </div>
 
-          {/* Tracker Filter */}
+          {/* Tracker Filter Dropdown */}
           <div>
             <select
               value={selectedTrackerId}
@@ -442,14 +549,14 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               }
               className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
             >
-              <option value="all">Todos os Tipos (Trackers)</option>
-              {trackers
-                .filter((t) => operationalTrackerIds.length === 0 || operationalTrackerIds.includes(t.id))
-                .map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
+              <option value="all">
+                Todos os Trackers {operationalTrackers.length > 1 ? '(Kanban por Tracker)' : ''}
+              </option>
+              {operationalTrackers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -464,14 +571,15 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             />
           </div>
 
-          {/* Blocked only toggle */}
+          {/* Blocked only toggle & clear */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
+              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                onlyBlocked
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
+                  : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+              }`}
             >
               <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
               <span>Itens Bloqueados</span>
@@ -490,78 +598,184 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
         </div>
       </div>
 
-      {/* Shared Kanban Board with cards meeting all requirements */}
-      <KanbanBoard
-        lanes={lanes}
-        columns={columns}
-        accent="rose"
-        density={columnDensity}
-        pendingIssueIds={pendingIssueIds}
-        collapsedLanes={collapsedLanes}
-        onToggleLaneCollapse={handleToggleLaneCollapse}
-        onMoveIssue={onMoveIssue}
-        onMoveColumn={onUpdateColumnOrder ? handleMoveColumn : undefined}
-        onSelectIssue={onSelectIssue}
-        emptyColumnLabel="Nenhuma tarefa"
-        renderCard={(issue) => (
-          <>
-            {/* Top Bar: ID, Tracker, Parent ID */}
-            <div className="flex items-center justify-between gap-1.5 mb-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-mono text-[11px] font-bold text-rose-300 bg-rose-950/50 px-1.5 py-0.2 rounded border border-rose-900/50">
-                  #{issue.id}
-                </span>
-                <span className="text-[10px] font-medium text-slate-300 bg-slate-800/70 px-1.5 py-0.2 rounded">
-                  {issue.tracker.name}
-                </span>
-              </div>
+      {/* Tracker Tabs Bar (quando há mais de 1 tracker operacional) */}
+      {operationalTrackers.length > 1 && (
+        <div className="flex items-center gap-2 p-1.5 bg-slate-900/80 border border-slate-800 rounded-2xl backdrop-blur-md overflow-x-auto scrollbar-thin shadow-sm">
+          <button
+            type="button"
+            onClick={() => setSelectedTrackerId('all')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+              selectedTrackerId === 'all'
+                ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Todos os Trackers</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                selectedTrackerId === 'all'
+                  ? 'bg-rose-700/80 text-white'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {operationalIssues.length}
+            </span>
+          </button>
 
-              {/* Requisito 3: ID da tarefa pai */}
-              {issue.parent && (
+          <div className="h-4 w-px bg-slate-800 mx-0.5 shrink-0" />
+
+          {operationalTrackers.map((t) => {
+            const count = operationalIssues.filter((i) => i.tracker.id === t.id).length;
+            const isSelected = selectedTrackerId === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSelectedTrackerId(t.id)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${
+                  isSelected
+                    ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50 font-semibold'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>{t.name}</span>
                 <span
-                  className="font-mono text-[10px] font-semibold text-blue-300 bg-blue-950/50 px-1.5 py-0.2 rounded border border-blue-900/50"
-                  title={`Tarefa Pai #${issue.parent.id}`}
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected
+                      ? 'bg-rose-700/80 text-white'
+                      : 'bg-slate-800 text-slate-400'
+                  }`}
                 >
-                  Pai: #{issue.parent.id}
+                  {count}
                 </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Empty State when no operational trackers */}
+      {displayedTrackers.length === 0 && (
+        <div className="p-8 text-center bg-slate-900/60 border border-slate-800 rounded-2xl">
+          <Kanban className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+          <p className="text-sm text-slate-400">Nenhum tracker operacional configurado ou encontrado.</p>
+        </div>
+      )}
+
+      {/* Renderização dos Kanbans por Tracker */}
+      <div className="space-y-6">
+        {displayedTrackers.map((tracker) => {
+          // Issues specific to this tracker matching active filters
+          const trackerIssues = operationalIssues.filter((i) => i.tracker.id === tracker.id);
+
+          // Statuses belonging strictly to this tracker
+          const trackerStatuses = trackerStatusMap.get(tracker.id) || statuses;
+
+          // Build columns specific to this tracker's statuses
+          const trackerColumns = buildColumns(
+            trackerStatuses,
+            statusMapping,
+            trackerIssues,
+            columnOrder
+          );
+
+          // Build swimlanes for this tracker's issues
+          const trackerLanes = buildTrackerLanes(trackerIssues, tracker.id);
+
+          const isCollapsed = Boolean(collapsedTrackers[tracker.id]);
+          const isSingleView = selectedTrackerId !== 'all';
+
+          return (
+            <div
+              key={tracker.id}
+              className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 shadow-sm backdrop-blur-sm transition-all"
+            >
+              {/* Tracker Section Header (mostrado sempre no modo 'all' ou com múltiplos trackers) */}
+              {(!isSingleView || operationalTrackers.length > 1) && (
+                <div className="flex items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-800/70">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleTrackerCollapse(tracker.id)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                      title={isCollapsed ? 'Expandir Kanban deste tracker' : 'Recolher Kanban deste tracker'}
+                    >
+                      {isCollapsed ? (
+                        <ChevronRight className="w-4 h-4 text-rose-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-rose-400" />
+                      )}
+                    </button>
+
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Tag className="w-4 h-4 text-rose-400 shrink-0" />
+                      <h2 className="text-sm font-bold text-white truncate tracking-tight">
+                        {tracker.name}
+                      </h2>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+                        {trackerIssues.length} {trackerIssues.length === 1 ? 'tarefa' : 'tarefas'}
+                      </span>
+                      <span className="text-[11px] text-slate-400 hidden sm:inline-block font-mono bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800/80">
+                        {trackerColumns.length} colunas
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions on tracker header */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!isSingleView && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTrackerId(tracker.id)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent hover:border-slate-700 transition-all"
+                        title={`Focar somente no tracker ${tracker.name}`}
+                      >
+                        <Maximize2 className="w-3 h-3 text-rose-400" />
+                        <span className="hidden md:inline">Focar neste tracker</span>
+                      </button>
+                    )}
+                    {isSingleView && operationalTrackers.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTrackerId('all')}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-rose-300 hover:text-white hover:bg-rose-950/40 border border-rose-900/50 transition-all"
+                      >
+                        <Layers className="w-3 h-3 text-rose-400" />
+                        <span>Ver todos os trackers</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Kanban Board do Tracker */}
+              {!isCollapsed && (
+                <KanbanBoard
+                  lanes={trackerLanes}
+                  columns={trackerColumns}
+                  accent="rose"
+                  density={columnDensity}
+                  pendingIssueIds={pendingIssueIds}
+                  collapsedLanes={collapsedLanes}
+                  onToggleLaneCollapse={handleToggleLaneCollapse}
+                  onMoveIssue={onMoveIssue}
+                  onMoveColumn={
+                    onUpdateColumnOrder
+                      ? (statusId, direction) =>
+                          handleMoveColumn(trackerColumns, statusId, direction)
+                      : undefined
+                  }
+                  onSelectIssue={onSelectIssue}
+                  emptyColumnLabel="Nenhuma tarefa"
+                  renderCard={renderCard}
+                />
               )}
             </div>
-
-            {/* Requisito 2: Sinalização de impedimento */}
-            {issue.is_blocked && (
-              <div className="mb-2 p-1.5 rounded-lg bg-rose-950/80 border border-rose-700/80 flex items-start gap-1.5 text-[11px] text-rose-200">
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
-                <div className="flex-1 leading-tight">
-                  <strong className="block text-[10px] font-bold uppercase text-rose-300">
-                    Impedimento
-                  </strong>
-                  <span className="text-slate-300 line-clamp-2">
-                    {issue.block_reason || 'Item bloqueado'}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Requisito 3: Assunto */}
-            <h5 className="text-xs font-semibold text-slate-100 group-hover:text-white line-clamp-2 leading-snug mb-2.5">
-              {issue.subject}
-            </h5>
-
-            {/* Bottom row: Requisito 3: Projeto & Responsável */}
-            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/80 gap-2">
-              <span className="truncate flex items-center gap-1 max-w-[55%]" title={issue.project.name}>
-                <FolderGit2 className="w-3 h-3 text-slate-500 shrink-0" />
-                <span className="truncate">{issue.project.name}</span>
-              </span>
-
-              <span className="truncate flex items-center gap-1 font-medium text-slate-300 max-w-[45%]" title={issue.assigned_to?.name || 'Não atribuído'}>
-                <User className="w-3 h-3 text-rose-400 shrink-0" />
-                <span className="truncate">{issue.assigned_to?.name || 'Sem resp.'}</span>
-              </span>
-            </div>
-          </>
-        )}
-      />
+          );
+        })}
+      </div>
     </div>
   );
 };
