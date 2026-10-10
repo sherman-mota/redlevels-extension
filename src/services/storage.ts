@@ -65,6 +65,9 @@ export const DEFAULT_CONFIG: RedlevelsConfig = {
   hasSeenTour: false,
   operationalColumnOrder: [],
   tacticalColumnOrder: [],
+  loadAllIssueStatuses: false,
+  closedLookbackDays: 60,
+  maxIssuesLimit: 5000,
 };
 
 /** Preset matching the ids used by the demo dataset. */

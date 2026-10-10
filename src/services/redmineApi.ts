@@ -27,9 +27,16 @@ export interface RedmineApiResult<T> {
 
 const REQUEST_TIMEOUT_MS = 20000;
 const PAGE_SIZE = 100; // Redmine's default max per page
-const MAX_OPEN_ISSUES = 1000;
-const MAX_CLOSED_ISSUES = 300;
-const CLOSED_LOOKBACK_DAYS = 30;
+export const DEFAULT_MAX_ISSUES = 5000;
+export const DEFAULT_MAX_CLOSED_ISSUES = 2000;
+export const DEFAULT_CLOSED_LOOKBACK_DAYS = 60;
+
+export interface WorkspaceIssuesOptions {
+  trackerIds?: number[];
+  loadAllStatuses?: boolean;
+  closedLookbackDays?: number; // 0 ou undefined: padrão, -1: sem limite de tempo
+  maxIssuesLimit?: number; // Limite por tracker ou total
+}
 
 const isExtensionPage = typeof chrome !== 'undefined' && !!chrome.permissions;
 
@@ -187,7 +194,7 @@ export class RedmineClient {
     endpoint: string,
     key: string,
     params: Record<string, string | number> = {},
-    max = MAX_OPEN_ISSUES
+    max = DEFAULT_MAX_ISSUES
   ): Promise<RedmineApiResult<T[]>> {
     const items: T[] = [];
     let offset = 0;
@@ -263,20 +270,114 @@ export class RedmineClient {
     };
   }
 
-  /** Open issues + issues closed in the last 30 days (so "Concluído" columns are meaningful). */
-  async getWorkspaceIssues(): Promise<RedmineApiResult<RedmineIssue[]>> {
+  /**
+   * Fetches issues for the workspace.
+   * When trackerIds are provided, queries Redmine specifically for those trackers,
+   * avoiding arbitrary global truncation and ensuring 100% parity with Redmine.
+   */
+  async getWorkspaceIssues(options?: WorkspaceIssuesOptions): Promise<RedmineApiResult<RedmineIssue[]>> {
     if (this.isDemo) return { success: true, data: await loadDemoIssues() };
 
-    const since = new Date(Date.now() - CLOSED_LOOKBACK_DAYS * 86400000).toISOString().slice(0, 10);
+    const trackerIds = (options?.trackerIds || []).filter((id) => typeof id === 'number' && !isNaN(id));
+    const loadAllStatuses = Boolean(options?.loadAllStatuses);
+    const lookbackDays =
+      options?.closedLookbackDays !== undefined && options.closedLookbackDays !== 0
+        ? options.closedLookbackDays
+        : DEFAULT_CLOSED_LOOKBACK_DAYS;
+    const maxLimit = options?.maxIssuesLimit && options.maxIssuesLimit > 0
+      ? options.maxIssuesLimit
+      : DEFAULT_MAX_ISSUES;
+
+    const since =
+      lookbackDays > 0
+        ? new Date(Date.now() - lookbackDays * 86400000).toISOString().slice(0, 10)
+        : null;
+
+    // Strategy 1: Targeted fetch by tracker (when configured trackers exist)
+    if (trackerIds.length > 0) {
+      const perTrackerResults = await Promise.all(
+        trackerIds.map(async (tid) => {
+          if (loadAllStatuses) {
+            // Fetch all issues (status_id: '*') for this specific tracker
+            const res = await this.requestAll<RedmineIssue>(
+              '/issues.json',
+              'issues',
+              { tracker_id: tid, status_id: '*', sort: 'updated_on:desc' },
+              maxLimit
+            );
+            return res.success && res.data ? res.data : [];
+          } else {
+            // Fetch open issues + recent closed issues for this specific tracker
+            const closedParams: Record<string, string | number> = {
+              tracker_id: tid,
+              status_id: 'closed',
+              sort: 'updated_on:desc',
+            };
+            if (since) {
+              closedParams.updated_on = `>=${since}`;
+            }
+
+            const [openRes, closedRes] = await Promise.all([
+              this.requestAll<RedmineIssue>(
+                '/issues.json',
+                'issues',
+                { tracker_id: tid, status_id: 'open', sort: 'updated_on:desc' },
+                maxLimit
+              ),
+              this.requestAll<RedmineIssue>(
+                '/issues.json',
+                'issues',
+                closedParams,
+                Math.min(maxLimit, DEFAULT_MAX_CLOSED_ISSUES)
+              ),
+            ]);
+
+            const openList = openRes.success && openRes.data ? openRes.data : [];
+            const closedList = closedRes.success && closedRes.data ? closedRes.data : [];
+            return mergeIssues(openList, closedList);
+          }
+        })
+      );
+
+      const merged = mergeIssues(...perTrackerResults);
+      return { success: true, data: merged };
+    }
+
+    // Strategy 2: Global fetch across all trackers (fallback when no trackers are configured yet)
+    if (loadAllStatuses) {
+      const res = await this.requestAll<RedmineIssue>(
+        '/issues.json',
+        'issues',
+        { status_id: '*', sort: 'updated_on:desc' },
+        maxLimit
+      );
+      if (!res.success) return res;
+      return { success: true, data: res.data || [] };
+    }
+
+    const closedParams: Record<string, string | number> = {
+      status_id: 'closed',
+      sort: 'updated_on:desc',
+    };
+    if (since) {
+      closedParams.updated_on = `>=${since}`;
+    }
+
     const [open, closed] = await Promise.all([
-      this.requestAll<RedmineIssue>('/issues.json', 'issues', { status_id: 'open', sort: 'updated_on:desc' }, MAX_OPEN_ISSUES),
       this.requestAll<RedmineIssue>(
         '/issues.json',
         'issues',
-        { status_id: 'closed', updated_on: `>=${since}`, sort: 'updated_on:desc' },
-        MAX_CLOSED_ISSUES
+        { status_id: 'open', sort: 'updated_on:desc' },
+        maxLimit
+      ),
+      this.requestAll<RedmineIssue>(
+        '/issues.json',
+        'issues',
+        closedParams,
+        Math.min(maxLimit, DEFAULT_MAX_CLOSED_ISSUES)
       ),
     ]);
+
     if (!open.success) return open;
     return { success: true, data: mergeIssues(open.data || [], closed.data || []) };
   }

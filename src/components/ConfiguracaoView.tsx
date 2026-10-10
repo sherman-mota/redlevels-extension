@@ -74,6 +74,15 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
   const [blockedFieldSearch, setBlockedFieldSearch] = useState('');
   const [blockedFieldFilterMode, setBlockedFieldFilterMode] = useState<'all' | 'selected'>('all');
 
+  // Task fetching scope & volume
+  const [loadAllIssueStatuses, setLoadAllIssueStatuses] = useState<boolean>(Boolean(config.loadAllIssueStatuses));
+  const [closedLookbackDays, setClosedLookbackDays] = useState<number>(
+    typeof config.closedLookbackDays === 'number' ? config.closedLookbackDays : 60
+  );
+  const [maxIssuesLimit, setMaxIssuesLimit] = useState<number>(
+    typeof config.maxIssuesLimit === 'number' ? config.maxIssuesLimit : 5000
+  );
+
   // Status mapping separated by operational and tactical
   const [operationalStatusMapping, setOperationalStatusMapping] = useState(
     config.operationalStatusMapping
@@ -310,6 +319,9 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         theme,
         operationalColumnOrder,
         tacticalColumnOrder,
+        loadAllIssueStatuses,
+        closedLookbackDays,
+        maxIssuesLimit,
       },
     };
 
@@ -373,6 +385,9 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
       }
       if (imported.operationalColumnOrder !== undefined) setOperationalColumnOrder(imported.operationalColumnOrder);
       if (imported.tacticalColumnOrder !== undefined) setTacticalColumnOrder(imported.tacticalColumnOrder);
+      if (imported.loadAllIssueStatuses !== undefined) setLoadAllIssueStatuses(imported.loadAllIssueStatuses);
+      if (imported.closedLookbackDays !== undefined) setClosedLookbackDays(imported.closedLookbackDays);
+      if (imported.maxIssuesLimit !== undefined) setMaxIssuesLimit(imported.maxIssuesLimit);
 
       await onSaveConfig({
         ...imported,
@@ -460,6 +475,9 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         theme,
         operationalColumnOrder,
         tacticalColumnOrder,
+        loadAllIssueStatuses,
+        closedLookbackDays,
+        maxIssuesLimit,
       });
 
       applyTheme(theme);
@@ -1017,6 +1035,129 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
               </button>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Escopo e Volume de Tarefas do Redmine */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+          <div>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 text-rose-400">
+              <Layers className="w-4 h-4" />
+              <span>Sincronização & Escopo de Tarefas do Redmine</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Controle quais tarefas são carregadas e garanta que as quantidades correspondam exatamente ao Redmine.
+            </p>
+          </div>
+          <span className="text-[11px] font-mono font-medium px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 self-start sm:self-auto">
+            Limite: {maxIssuesLimit.toLocaleString('pt-BR')} tarefas/tracker
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Opção 1: Status de tarefas a carregar */}
+          <div className="space-y-2 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+            <label className="text-xs font-semibold text-slate-200 block">
+              Status das tarefas a carregar
+            </label>
+            <div className="space-y-2">
+              <label
+                className={`flex items-start gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                  !loadAllIssueStatuses
+                    ? 'bg-rose-950/30 border-rose-800/60 text-white'
+                    : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="issueStatusScope"
+                  checked={!loadAllIssueStatuses}
+                  onChange={() => setLoadAllIssueStatuses(false)}
+                  className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                />
+                <div className="space-y-0.5">
+                  <span className="font-medium text-slate-200 block">Abertas + Concluídas recentes</span>
+                  <span className="text-[11px] text-slate-400 block leading-tight">
+                    Carrega todas as tarefas ativas e as fechadas da janela configurada.
+                  </span>
+                </div>
+              </label>
+
+              <label
+                className={`flex items-start gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                  loadAllIssueStatuses
+                    ? 'bg-rose-950/30 border-rose-800/60 text-white'
+                    : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="issueStatusScope"
+                  checked={loadAllIssueStatuses}
+                  onChange={() => setLoadAllIssueStatuses(true)}
+                  className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                />
+                <div className="space-y-0.5">
+                  <span className="font-medium text-slate-200 block">Todas as tarefas (status=*)</span>
+                  <span className="text-[11px] text-slate-400 block leading-tight">
+                    Traz 100% das tarefas (abertas e fechadas) da respectiva tracker.
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Opção 2: Janela de tarefas concluídas */}
+          <div className="space-y-2 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+            <label className="text-xs font-semibold text-slate-200 block">
+              Histórico de tarefas concluídas
+            </label>
+            <p className="text-[11px] text-slate-400">
+              Aplicável no modo &quot;Abertas + Concluídas recentes&quot; para preencher a coluna de concluídos.
+            </p>
+            <select
+              value={closedLookbackDays}
+              disabled={loadAllIssueStatuses}
+              onChange={(e) => setClosedLookbackDays(Number(e.target.value))}
+              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 text-xs text-white focus:outline-none focus:border-rose-500 disabled:opacity-50"
+            >
+              <option value={30}>Últimos 30 dias</option>
+              <option value={60}>Últimos 60 dias (Recomendado)</option>
+              <option value={90}>Últimos 90 dias</option>
+              <option value={180}>Últimos 180 dias (6 meses)</option>
+              <option value={365}>Último 1 ano (365 dias)</option>
+              <option value={-1}>Sem limite de data (Todas as fechadas)</option>
+            </select>
+            {loadAllIssueStatuses && (
+              <span className="text-[10px] text-slate-500 block italic">
+                Ignorado pois o modo &quot;Todas as tarefas&quot; já busca sem corte de data.
+              </span>
+            )}
+          </div>
+
+          {/* Opção 3: Limite máximo por tracker */}
+          <div className="space-y-2 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+            <label className="text-xs font-semibold text-slate-200 block">
+              Limite máximo de tarefas por Tracker
+            </label>
+            <p className="text-[11px] text-slate-400">
+              Evita travamentos caso existam dezenas de milhares de tarefas no Redmine.
+            </p>
+            <select
+              value={maxIssuesLimit}
+              onChange={(e) => setMaxIssuesLimit(Number(e.target.value))}
+              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 text-xs text-white focus:outline-none focus:border-rose-500"
+            >
+              <option value={1000}>1.000 tarefas por tracker</option>
+              <option value={3000}>3.000 tarefas por tracker</option>
+              <option value={5000}>5.000 tarefas por tracker (Padrão)</option>
+              <option value={10000}>10.000 tarefas por tracker</option>
+            </select>
+            <span className="text-[10px] text-emerald-400 block">
+              A busca agora é individualizada por tracker, garantindo paridade total com o Redmine.
+            </span>
+          </div>
         </div>
       </div>
 

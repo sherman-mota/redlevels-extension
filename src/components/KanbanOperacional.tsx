@@ -384,9 +384,30 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
               <Kanban className="w-5 h-5 text-rose-500" />
               <span>Tarefas Operacionais</span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-300 border border-slate-700">
-                {operationalIssues.length} tarefas
-              </span>
+              {(() => {
+                const totalRawOperational = issues.filter(
+                  (i) => operationalTrackerIds.length === 0 || operationalTrackerIds.includes(i.tracker.id)
+                ).length;
+                const isFiltered = operationalIssues.length !== totalRawOperational;
+                return (
+                  <span
+                    className={`text-xs px-2.5 py-0.5 rounded-full font-mono border transition-all ${
+                      isFiltered
+                        ? 'bg-amber-950/60 text-amber-300 border-amber-800/80 font-bold'
+                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}
+                    title={
+                      isFiltered
+                        ? `Filtros ativos: exibindo ${operationalIssues.length} de ${totalRawOperational} tarefas operacionais carregadas`
+                        : `${operationalIssues.length} tarefas carregadas`
+                    }
+                  >
+                    {isFiltered
+                      ? `${operationalIssues.length} de ${totalRawOperational} tarefas`
+                      : `${operationalIssues.length} tarefas`}
+                  </span>
+                );
+              })()}
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
               Kanban de tarefas operacionais individualizado por Tracker com status específicos. Arraste cards para atualizar o status.
@@ -687,9 +708,28 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                       <h2 className="text-sm font-bold text-white truncate tracking-tight">
                         {tracker.name}
                       </h2>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
-                        {trackerIssues.length} {trackerIssues.length === 1 ? 'tarefa' : 'tarefas'}
-                      </span>
+                      {(() => {
+                        const totalRawForTracker = issues.filter((i) => i.tracker.id === tracker.id).length;
+                        const isFiltered = trackerIssues.length !== totalRawForTracker;
+                        return (
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-mono border shrink-0 transition-all ${
+                              isFiltered
+                                ? 'bg-amber-950/60 text-amber-300 border-amber-800/80 font-bold'
+                                : 'bg-slate-800 text-slate-300 border-slate-700'
+                            }`}
+                            title={
+                              isFiltered
+                                ? `Filtros ativos: exibindo ${trackerIssues.length} de ${totalRawForTracker} tarefas carregadas deste tracker`
+                                : `${trackerIssues.length} tarefas deste tracker`
+                            }
+                          >
+                            {isFiltered
+                              ? `${trackerIssues.length} de ${totalRawForTracker} tarefas`
+                              : `${trackerIssues.length} ${trackerIssues.length === 1 ? 'tarefa' : 'tarefas'}`}
+                          </span>
+                        );
+                      })()}
                       <span className="text-[11px] text-slate-400 hidden sm:inline-block font-mono bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800/80">
                         {trackerColumns.length} colunas
                       </span>

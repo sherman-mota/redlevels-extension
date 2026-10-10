@@ -114,6 +114,9 @@ export interface RedlevelsConfig {
   hasSeenTour: boolean;
   operationalColumnOrder?: number[];
   tacticalColumnOrder?: number[];
+  loadAllIssueStatuses?: boolean;
+  closedLookbackDays?: number; // 0 ou undefined para padrão, -1 para sem limite de data
+  maxIssuesLimit?: number; // Limite máximo de tarefas por tracker / busca (padrão 5000)
 }
 
 export interface ConnectionHealth {

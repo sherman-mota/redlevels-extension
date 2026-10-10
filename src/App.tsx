@@ -143,13 +143,25 @@ export default function App() {
       });
       setMissingHostPermission(false);
 
+      const relevantTrackerIds = Array.from(
+        new Set([
+          ...(config.operationalTrackerIds || []),
+          ...(config.tacticalTrackerIds || []),
+        ])
+      );
+
       // 2. Fetch Projects, Trackers, Statuses, Custom Fields, Issues, Inbox in parallel
       const [projRes, trackRes, statRes, cfRes, issRes, inboxRes] = await Promise.all([
         client.getProjects(),
         client.getTrackers(),
         client.getStatuses(),
         client.getCustomFields(),
-        client.getWorkspaceIssues(),
+        client.getWorkspaceIssues({
+          trackerIds: relevantTrackerIds,
+          loadAllStatuses: config.loadAllIssueStatuses,
+          closedLookbackDays: config.closedLookbackDays,
+          maxIssuesLimit: config.maxIssuesLimit,
+        }),
         client.getInbox(activeUser),
       ]);
 
@@ -305,7 +317,18 @@ export default function App() {
   // Background non-intrusive refresh to sync related issues, parents, and server hooks
   const refreshIssuesSilently = async () => {
     try {
-      const issRes = await client.getWorkspaceIssues();
+      const relevantTrackerIds = Array.from(
+        new Set([
+          ...(config.operationalTrackerIds || []),
+          ...(config.tacticalTrackerIds || []),
+        ])
+      );
+      const issRes = await client.getWorkspaceIssues({
+        trackerIds: relevantTrackerIds,
+        loadAllStatuses: config.loadAllIssueStatuses,
+        closedLookbackDays: config.closedLookbackDays,
+        maxIssuesLimit: config.maxIssuesLimit,
+      });
       if (issRes.success && issRes.data) {
         const linked = linkChildren(issRes.data);
         const processed = linked.map((i) => processIssueWithConfig(i, config));
