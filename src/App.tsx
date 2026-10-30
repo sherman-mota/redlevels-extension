@@ -44,6 +44,7 @@ import {
 import {
   SyncInfo,
   closedCutoffDate,
+  dataScopeKey,
   maxUpdatedOn,
   mergeIncremental,
   watermarkToSince,
@@ -110,13 +111,7 @@ export default function App() {
 
   // Only settings that change WHICH issues are downloaded force a full reload. Saving anything else
   // (teams, column order, theme...) used to re-create loadData and refetch everything from Redmine.
-  const dataScopeKey = JSON.stringify([
-    config.operationalTrackerIds,
-    config.tacticalTrackerIds,
-    config.loadAllIssueStatuses,
-    config.closedLookbackDays,
-    config.maxIssuesLimit,
-  ]);
+  const scopeKey = dataScopeKey(config);
 
   // Load config on mount
   useEffect(() => {
@@ -308,9 +303,9 @@ export default function App() {
         setIsLoading(false);
       }
     }
-  // dataScopeKey (not `config`): see the comment where it is defined.
+  // scopeKey (not `config`): see the comment where it is defined.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, dataScopeKey, configLoaded]);
+  }, [client, scopeKey, configLoaded]);
 
   // Initial check: if not configured, show onboarding
   useEffect(() => {

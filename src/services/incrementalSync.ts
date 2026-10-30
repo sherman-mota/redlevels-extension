@@ -13,6 +13,27 @@ import { DEFAULT_CLOSED_LOOKBACK_DAYS } from './redmineApi';
 /** Safety margin subtracted from the watermark, to absorb commit/clock skew between requests. */
 export const WATERMARK_SAFETY_MS = 60_000;
 
+/**
+ * Settings that change WHICH issues are downloaded. Anything that differs here invalidates the data
+ * already in memory (and the local cache), so it forces a full reload. Saving other settings
+ * (theme, column order...) must not.
+ */
+export function dataScopeKey(
+  config: Pick<
+    RedlevelsConfig,
+    'operationalTrackerIds' | 'tacticalTrackerIds' | 'loadAllIssueStatuses' | 'closedLookbackDays' | 'maxIssuesLimit'
+  >
+): string {
+  const sorted = (ids?: number[]) => [...(ids || [])].sort((a, b) => a - b);
+  return JSON.stringify([
+    sorted(config.operationalTrackerIds),
+    sorted(config.tacticalTrackerIds),
+    !!config.loadAllIssueStatuses,
+    config.closedLookbackDays ?? null,
+    config.maxIssuesLimit ?? null,
+  ]);
+}
+
 /** What the last synchronization did; shown in the header. */
 export interface SyncInfo {
   /** Local time the sync finished (ISO). Display only, never used for queries. */
