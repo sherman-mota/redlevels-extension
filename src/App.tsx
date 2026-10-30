@@ -52,7 +52,7 @@ import {
 
 import { CACHE_FULL_MAX_AGE_MS, CacheSnapshot, loadSnapshot, saveSnapshot } from './services/issueCache';
 
-import { unitScopeOf } from './services/unitScope';
+import { describeUnit, unitScopeOf } from './services/unitScope';
 import { applyTheme } from './styles/themes';
 import { Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
 
@@ -786,6 +786,7 @@ export default function App() {
         config={config}
         onRefresh={loadData}
         syncInfo={syncInfo}
+        unitChip={describeUnit(unitScopeOf(config), projects)}
         onOpenTour={() => setShowTour(true)}
         inboxCount={inboxCount}
         blockedCount={blockedCount}
@@ -935,6 +936,7 @@ export default function App() {
                 trackers={trackers}
                 customFields={customFields}
                 statuses={statuses}
+                projects={projects}
                 currentUser={currentUser}
                 onSaveConfig={handleUpdateConfig}
                 onResetDemoData={handleResetDemoData}
