@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Header } from './components/Header';
 import { OnboardingModal } from './components/OnboardingModal';
 import { FirstTimeTour } from './components/FirstTimeTour';
@@ -84,10 +84,26 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Always the latest config, so loadData doesn't need the whole config object as a dependency.
+  const configRef = useRef<RedlevelsConfig>(config);
+  configRef.current = config;
+  // Identifies the most recent load; results of superseded loads are discarded.
+  const loadSeqRef = useRef(0);
+
   // Initialize Redmine Client
   const client = useMemo(() => {
     return new RedmineClient(config.redmineUrl, config.apiKey, config.isDemoMode);
   }, [config.redmineUrl, config.apiKey, config.isDemoMode]);
+
+  // Only settings that change WHICH issues are downloaded force a full reload. Saving anything else
+  // (teams, column order, theme...) used to re-create loadData and refetch everything from Redmine.
+  const dataScopeKey = JSON.stringify([
+    config.operationalTrackerIds,
+    config.tacticalTrackerIds,
+    config.loadAllIssueStatuses,
+    config.closedLookbackDays,
+    config.maxIssuesLimit,
+  ]);
 
   // Load config on mount
   useEffect(() => {
@@ -113,6 +129,9 @@ export default function App() {
   // Load all data from Redmine
   const loadData = useCallback(async () => {
     if (!configLoaded) return;
+    const cfg = configRef.current;
+    const seq = ++loadSeqRef.current;
+    const isCurrent = () => seq === loadSeqRef.current;
     setIsRefreshing(true);
     setLoadError(null);
 
@@ -121,6 +140,7 @@ export default function App() {
 
       // 1. Test Connection & get user
       const userRes = await client.testConnection();
+      if (!isCurrent()) return;
       if (!userRes.success || !userRes.data) {
         setConnectionHealth({
           status: 'error',
@@ -145,8 +165,8 @@ export default function App() {
 
       const relevantTrackerIds = Array.from(
         new Set([
-          ...(config.operationalTrackerIds || []),
-          ...(config.tacticalTrackerIds || []),
+          ...(cfg.operationalTrackerIds || []),
+          ...(cfg.tacticalTrackerIds || []),
         ])
       );
 
@@ -158,12 +178,13 @@ export default function App() {
         client.getCustomFields(),
         client.getWorkspaceIssues({
           trackerIds: relevantTrackerIds,
-          loadAllStatuses: config.loadAllIssueStatuses,
-          closedLookbackDays: config.closedLookbackDays,
-          maxIssuesLimit: config.maxIssuesLimit,
+          loadAllStatuses: cfg.loadAllIssueStatuses,
+          closedLookbackDays: cfg.closedLookbackDays,
+          maxIssuesLimit: cfg.maxIssuesLimit,
         }),
         client.getInbox(activeUser),
       ]);
+      if (!isCurrent()) return;
 
       if (projRes.success && projRes.data) {
         const sorted = [...projRes.data].sort((a, b) =>
@@ -175,7 +196,7 @@ export default function App() {
       if (statRes.success && statRes.data) setStatuses(statRes.data);
 
       // Status mapping auto-suggest if user hasn't configured any
-      let currentMapping = config.statusMapping;
+      let currentMapping = cfg.statusMapping;
       const hasAnyMapping = Object.values(currentMapping).some((arr) => arr.length > 0);
       if (!hasAnyMapping && statRes.success && statRes.data && statRes.data.length > 0) {
         currentMapping = suggestStatusMapping(statRes.data);
@@ -202,7 +223,7 @@ export default function App() {
       setCustomFields(resolvedCustomFields);
 
       // Process issues with config (blocked flags, strategic initiative names)
-      const processed = linked.map((i) => processIssueWithConfig(i, config));
+      const processed = linked.map((i) => processIssueWithConfig(i, cfg));
       setIssues(processed);
     } catch (e: any) {
       console.error('Erro ao carregar dados do Redmine', e);
@@ -212,10 +233,15 @@ export default function App() {
       });
       setLoadError(e.message || 'Erro inesperado na sincronização');
     } finally {
-      setIsRefreshing(false);
-      setIsLoading(false);
+      // A superseded load must not clear the spinner of the load that replaced it.
+      if (isCurrent()) {
+        setIsRefreshing(false);
+        setIsLoading(false);
+      }
     }
-  }, [client, config, configLoaded]);
+  // dataScopeKey (not `config`): see the comment where it is defined.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, dataScopeKey, configLoaded]);
 
   // Initial check: if not configured, show onboarding
   useEffect(() => {
@@ -257,10 +283,11 @@ export default function App() {
       applyTheme(updates.theme);
     }
 
+    // The settings form always sends the connection fields, so only reload when one really changed.
     if (
-      updates.redmineUrl !== undefined ||
-      updates.apiKey !== undefined ||
-      updates.isDemoMode !== undefined
+      (updates.redmineUrl !== undefined && updates.redmineUrl !== config.redmineUrl) ||
+      (updates.apiKey !== undefined && updates.apiKey !== config.apiKey) ||
+      (updates.isDemoMode !== undefined && updates.isDemoMode !== config.isDemoMode)
     ) {
       setTimeout(() => loadData(), 50);
     } else if (
