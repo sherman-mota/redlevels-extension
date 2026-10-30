@@ -45,33 +45,36 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  if (!isOpen || !issue) return null;
-
-  const redmineIssueUrl = redmineUrl
-    ? `${redmineUrl.replace(/\/+$/, '')}/issues/${issue.id}`
-    : '#';
-
+  // Hooks must run before the early return below (React error #310).
   // Redmine provides allowed_statuses based on tracker & role workflow rules.
   // Ensure current status is included so it displays accurately and guard against unexpected types.
   const availableStatuses = React.useMemo(() => {
     const list: RedmineStatus[] = [];
-    if (Array.isArray(issue.allowed_statuses) && issue.allowed_statuses.length > 0) {
-      issue.allowed_statuses.forEach((s) => {
+    const allowed = issue?.allowed_statuses;
+    const current = issue?.status;
+    if (Array.isArray(allowed) && allowed.length > 0) {
+      allowed.forEach((s) => {
         if (s && typeof s === 'object' && typeof s.id === 'number') {
           list.push({ id: s.id, name: s.name || `Status #${s.id}`, is_closed: s.is_closed });
         }
       });
-      if (issue.status && typeof issue.status.id === 'number' && !list.some((s) => s.id === issue.status.id)) {
+      if (current && typeof current.id === 'number' && !list.some((s) => s.id === current.id)) {
         list.unshift({
-          id: issue.status.id,
-          name: issue.status.name || `Status #${issue.status.id}`,
-          is_closed: issue.status.is_closed,
+          id: current.id,
+          name: current.name || `Status #${current.id}`,
+          is_closed: current.is_closed,
         });
       }
     }
     if (list.length > 0) return list;
     return Array.isArray(statuses) ? statuses : [];
-  }, [issue.allowed_statuses, issue.status, statuses]);
+  }, [issue?.allowed_statuses, issue?.status, statuses]);
+
+  if (!isOpen || !issue) return null;
+
+  const redmineIssueUrl = redmineUrl
+    ? `${redmineUrl.replace(/\/+$/, '')}/issues/${issue.id}`
+    : '#';
 
   const handleStatusChange = async (newStatusId: number) => {
     if (!newStatusId || newStatusId === issue.status?.id) return;
