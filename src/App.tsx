@@ -372,8 +372,13 @@ export default function App() {
         }
 
         if (res.data.status?.id !== targetStatusId) {
+          const target = statusObj?.name || targetStatusId;
+          // PUT failed (e.g. HTTP 422, permission): show what Redmine said. PUT succeeded but the
+          // status did not change: Redmine silently ignored it, which is what the workflow rules do.
           alert(
-            `A transição para "${statusObj?.name || targetStatusId}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`
+            !res.success && res.error
+              ? `Não foi possível mover para "${target}": ${res.error}. O status atual da tarefa permanece como "${res.data.status?.name}".`
+              : `A transição para "${target}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`
           );
         } else if (res.success) {
           refreshIssuesSilently();
