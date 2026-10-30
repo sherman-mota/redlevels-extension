@@ -441,6 +441,7 @@ export default function App() {
   // Move issue (Kanban Drag & Drop) -> Requisito: PUT /issues/[id].json
   const handleMoveIssue = async (issueId: number, targetStatusId: number) => {
     const previousIssues = [...issues];
+    const knownIssue = issues.find((iss) => iss.id === issueId);
     const statusObj = statuses.find((s) => s.id === targetStatusId);
 
     // Optimistic UI update
@@ -460,6 +461,35 @@ export default function App() {
     setPendingIssueIds((prev) => new Set(prev).add(issueId));
 
     try {
+      // Read the issue as it is on the server before writing: someone else may have changed it since
+      // it was loaded, and the workflow may not allow the transition (allowed_statuses). If this read
+      // fails we still try the write; Redmine remains the final judge.
+      const check = await client.getIssueDetail(issueId);
+      if (check.success && check.data) {
+        const server = check.data;
+        const changedByOthers = !!knownIssue && server.updated_on !== knownIssue.updated_on;
+        const allowed = server.allowed_statuses;
+        const forbidden =
+          !!allowed &&
+          allowed.length > 0 &&
+          server.status?.id !== targetStatusId &&
+          !allowed.some((s) => s.id === targetStatusId);
+
+        if (changedByOthers || forbidden) {
+          const fresh = processIssueWithConfig(server, config);
+          setIssues((prev) => prev.map((iss) => (iss.id === issueId ? fresh : iss)));
+          if (selectedIssue && selectedIssue.id === issueId) {
+            setSelectedIssue(fresh);
+          }
+          alert(
+            changedByOthers
+              ? `A tarefa #${issueId} foi alterada no Redmine desde o último carregamento (agora em "${server.status?.name}"). Nada foi gravado; o quadro foi atualizado. Confira e mova novamente se ainda fizer sentido.`
+              : `O fluxo de trabalho do Redmine não permite mover a tarefa #${issueId} de "${server.status?.name}" para "${statusObj?.name || targetStatusId}". Nada foi gravado.`
+          );
+          return;
+        }
+      }
+
       const res = await client.updateIssue(issueId, { status_id: targetStatusId });
 
       if (res.data) {
@@ -471,8 +501,13 @@ export default function App() {
         }
 
         if (res.data.status?.id !== targetStatusId) {
+          const target = statusObj?.name || targetStatusId;
+          // PUT failed (e.g. HTTP 422, permission): show what Redmine said. PUT succeeded but the
+          // status did not change: Redmine silently ignored it, which is what the workflow rules do.
           alert(
-            `A transição para "${statusObj?.name || targetStatusId}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`
+            !res.success && res.error
+              ? `Não foi possível mover para "${target}": ${res.error}. O status atual da tarefa permanece como "${res.data.status?.name}".`
+              : `A transição para "${target}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`
           );
         } else if (res.success) {
           refreshIssuesSilently();
