@@ -16,6 +16,7 @@ import {
   DEMO_CUSTOM_FIELDS,
 } from './demoData';
 import { loadDemoIssues, saveDemoIssues } from './storage';
+import type { UnitScope } from './unitScope';
 
 export interface RedmineApiResult<T> {
   success: boolean;
@@ -110,6 +111,17 @@ function describeNetworkError(err: any, url: string): string {
   return `Não foi possível alcançar o Redmine em ${url}. Verifique a URL, sua rede/VPN e a permissão de acesso da extensão.${insecure}`;
 }
 
+/** Removes duplicates by `id`, keeping the first occurrence (an issue can match several units). */
+function uniqueById<T>(items: T[]): T[] {
+  const seen = new Set<number>();
+  return items.filter((item) => {
+    const id = (item as { id: number }).id;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Client                                                              */
 /* ------------------------------------------------------------------ */
@@ -118,11 +130,29 @@ export class RedmineClient {
   private url: string;
   private apiKey: string;
   private isDemo: boolean;
+  private unit: UnitScope | null;
 
-  constructor(url: string, apiKey: string, isDemo: boolean = false) {
+  /** `unit`: when set, every /issues.json collection query is restricted to those projects. */
+  constructor(url: string, apiKey: string, isDemo: boolean = false, unit: UnitScope | null = null) {
     this.url = normalizeRedmineUrl(url);
     this.apiKey = (apiKey || '').trim();
     this.isDemo = isDemo;
+    this.unit = unit;
+  }
+
+  /**
+   * One query per unit (Redmine does not accept several projects in one query), or null when the
+   * query is not an issue collection or has no unit scope. This is the single place that applies the
+   * unit scope: requestAll and requestAllStrict both go through it, so the full load, the Inbox, the
+   * per-tracker status discovery and the incremental sync are all restricted the same way.
+   */
+  private unitQueries(
+    endpoint: string,
+    params: Record<string, string | number>
+  ): Record<string, string | number>[] | null {
+    if (!this.unit || endpoint !== '/issues.json' || params.project_id !== undefined) return null;
+    const subprojects = this.unit.includeSubprojects ? '*' : '!*';
+    return this.unit.projectIds.map((id) => ({ ...params, project_id: id, subproject_id: subprojects }));
   }
 
   private async request<T>(
@@ -196,6 +226,14 @@ export class RedmineClient {
     params: Record<string, string | number> = {},
     max = DEFAULT_MAX_ISSUES
   ): Promise<RedmineApiResult<T[]>> {
+    const perUnit = this.unitQueries(endpoint, params);
+    if (perUnit) {
+      const parts = await Promise.all(perUnit.map((q) => this.requestAll<T>(endpoint, key, q, max)));
+      const failed = parts.find((p) => !p.success);
+      if (failed) return failed;
+      return { success: true, data: uniqueById(parts.flatMap((p) => p.data || [])).slice(0, max) };
+    }
+
     const items: T[] = [];
     let offset = 0;
     let total = Infinity;
@@ -231,6 +269,19 @@ export class RedmineClient {
     params: Record<string, string | number>,
     max: number
   ): Promise<RedmineApiResult<T[]> & { truncated?: boolean }> {
+    const perUnit = this.unitQueries(endpoint, params);
+    if (perUnit) {
+      const parts = await Promise.all(perUnit.map((q) => this.requestAllStrict<T>(endpoint, key, q, max)));
+      const failed = parts.find((p) => !p.success);
+      if (failed) return failed;
+      const merged = uniqueById(parts.flatMap((p) => p.data || []));
+      return {
+        success: true,
+        data: merged.slice(0, max),
+        truncated: parts.some((p) => p.truncated) || merged.length > max,
+      };
+    }
+
     const items: T[] = [];
     let offset = 0;
     let total = Infinity;

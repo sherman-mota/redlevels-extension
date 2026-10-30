@@ -52,6 +52,7 @@ import {
 
 import { CACHE_FULL_MAX_AGE_MS, CacheSnapshot, loadSnapshot, saveSnapshot } from './services/issueCache';
 
+import { unitScopeOf } from './services/unitScope';
 import { applyTheme } from './styles/themes';
 import { Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
 
@@ -113,9 +114,12 @@ export default function App() {
   const [cacheError, setCacheError] = useState<string | null>(null);
 
   // Initialize Redmine Client
+  // A new client (hence a new loadData and a full reload) whenever the connection or the unit scope changes.
+  const unitKey = JSON.stringify(unitScopeOf(config));
   const client = useMemo(() => {
-    return new RedmineClient(config.redmineUrl, config.apiKey, config.isDemoMode);
-  }, [config.redmineUrl, config.apiKey, config.isDemoMode]);
+    return new RedmineClient(config.redmineUrl, config.apiKey, config.isDemoMode, unitScopeOf(config));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.redmineUrl, config.apiKey, config.isDemoMode, unitKey]);
 
   // Only settings that change WHICH issues are downloaded force a full reload. Saving anything else
   // (teams, column order, theme...) used to re-create loadData and refetch everything from Redmine.
