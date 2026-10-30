@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Kanban,
   AlertTriangle,
@@ -33,6 +33,8 @@ interface KanbanOperacionalProps {
   onSelectIssue: (issue: RedmineIssue) => void;
   onMoveIssue: (issueId: number, targetStatusId: number) => Promise<void>;
   isLoading?: boolean;
+  /** Publishes the list currently shown (after filters), used by the CSV export. */
+  onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
 }
 
 export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
@@ -48,6 +50,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   onUpdateColumnOrder,
   onSelectIssue,
   onMoveIssue,
+  onVisibleIssuesChange,
 }) => {
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -446,6 +449,13 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     }
     return operationalTrackers.filter((t) => t.id === selectedTrackerId);
   }, [operationalTrackers, selectedTrackerId]);
+
+  // Issues on the board right now: filters applied and only the displayed trackers
+  useEffect(() => {
+    const shown = new Set(displayedTrackers.map((t) => t.id));
+    onVisibleIssuesChange?.(operationalIssues.filter((i) => shown.has(i.tracker.id)));
+    return () => onVisibleIssuesChange?.([]);
+  }, [operationalIssues, displayedTrackers, onVisibleIssuesChange]);
 
   // Collect all active swimlane keys across all displayed trackers
   const allActiveLaneKeys = useMemo(() => {

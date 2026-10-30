@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Inbox,
   UserCheck,
@@ -20,6 +20,8 @@ interface InboxViewProps {
   statuses: RedmineStatus[];
   onSelectIssue: (issue: RedmineIssue) => void;
   onUpdateStatus: (issueId: number, statusId: number) => Promise<void>;
+  /** Publishes the list currently shown (after filters), used by the CSV export. */
+  onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({
@@ -29,6 +31,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   statuses,
   onSelectIssue,
   onUpdateStatus,
+  onVisibleIssuesChange,
 }) => {
   const [inboxTab, setInboxTab] = useState<'assigned' | 'watched'>('assigned');
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,6 +95,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
       return true;
     });
   }, [currentList, searchQuery, statusFilter, onlyBlocked]);
+
+  useEffect(() => {
+    onVisibleIssuesChange?.(filteredIssues);
+    return () => onVisibleIssuesChange?.([]);
+  }, [filteredIssues, onVisibleIssuesChange]);
 
   // Quick metrics
   const blockedCount = currentList.filter((i) => i.is_blocked).length;
