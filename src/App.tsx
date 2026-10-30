@@ -9,6 +9,7 @@ import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
 import { InboxView } from './components/InboxView';
 import { ConfiguracaoView } from './components/ConfiguracaoView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { downloadCsv } from './services/csvExport';
 
 import {
   RedlevelsConfig,
@@ -70,6 +71,8 @@ export default function App() {
 
   // Navigation state
   const [currentTab, setCurrentTab] = useState<'inbox' | 'operacional' | 'tatico' | 'estrategico' | 'configuracao'>('operacional');
+  // Issues the active tab is displaying (filters applied); published by the tab, used by the CSV export
+  const [visibleIssues, setVisibleIssues] = useState<RedmineIssue[]>([]);
 
   // Modals state
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -601,6 +604,8 @@ export default function App() {
         config={config}
         onRefresh={loadData}
         onOpenTour={() => setShowTour(true)}
+        exportableCount={visibleIssues.length}
+        onExportCsv={() => downloadCsv(visibleIssues, config, currentTab)}
         inboxCount={inboxCount}
         blockedCount={blockedCount}
         isRefreshing={isRefreshing}
@@ -689,6 +694,7 @@ export default function App() {
                 statuses={statuses}
                 onSelectIssue={handleSelectIssue}
                 onUpdateStatus={handleUpdateStatus}
+                onVisibleIssuesChange={setVisibleIssues}
               />
             )}
             {currentTab === 'operacional' && (
@@ -708,6 +714,7 @@ export default function App() {
                 onSelectIssue={handleSelectIssue}
                 onMoveIssue={handleMoveIssue}
                 isLoading={isRefreshing}
+                onVisibleIssuesChange={setVisibleIssues}
               />
             )}
             {currentTab === 'tatico' && (
@@ -728,6 +735,7 @@ export default function App() {
                 onSelectIssue={handleSelectIssue}
                 onMoveIssue={handleMoveIssue}
                 isLoading={isRefreshing}
+                onVisibleIssuesChange={setVisibleIssues}
               />
             )}
             {currentTab === 'estrategico' && (
