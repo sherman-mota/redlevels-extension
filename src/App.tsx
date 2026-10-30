@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Header } from './components/Header';
 import { OnboardingModal } from './components/OnboardingModal';
 import { FirstTimeTour } from './components/FirstTimeTour';
@@ -40,6 +40,14 @@ import {
   requestHostPermission,
   mergeIssues,
 } from './services/redmineApi';
+
+import {
+  SyncInfo,
+  closedCutoffDate,
+  maxUpdatedOn,
+  mergeIncremental,
+  watermarkToSince,
+} from './services/incrementalSync';
 
 import { applyTheme } from './styles/themes';
 import { Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
@@ -83,11 +91,32 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
+
+  // Incremental sync bookkeeping (refs: changing them must not re-create loadData or re-render).
+  // Newest `updated_on` the server has sent us; null means "no baseline, next sync must be full".
+  const watermarkRef = useRef<string | null>(null);
+  const currentUserRef = useRef<RedmineUser | undefined>(undefined);
+  // Always the latest config, so loadData doesn't need the whole config object as a dependency.
+  const configRef = useRef<RedlevelsConfig>(config);
+  configRef.current = config;
+  // Identifies the most recent load; results of superseded loads are discarded.
+  const loadSeqRef = useRef(0);
 
   // Initialize Redmine Client
   const client = useMemo(() => {
     return new RedmineClient(config.redmineUrl, config.apiKey, config.isDemoMode);
   }, [config.redmineUrl, config.apiKey, config.isDemoMode]);
+
+  // Only settings that change WHICH issues are downloaded force a full reload. Saving anything else
+  // (teams, column order, theme...) used to re-create loadData and refetch everything from Redmine.
+  const dataScopeKey = JSON.stringify([
+    config.operationalTrackerIds,
+    config.tacticalTrackerIds,
+    config.loadAllIssueStatuses,
+    config.closedLookbackDays,
+    config.maxIssuesLimit,
+  ]);
 
   // Load config on mount
   useEffect(() => {
@@ -110,17 +139,72 @@ export default function App() {
     });
   }, [configLoaded, config.isDemoMode, config.redmineUrl]);
 
-  // Load all data from Redmine
-  const loadData = useCallback(async () => {
+  /**
+   * Loads data from Redmine.
+   * - 'full' (default): everything, every time (first load, scope change, "Carga completa").
+   * - 'incremental': only issues changed since the last load, merged by id. Falls back to a full
+   *   load on any problem (no baseline, request error, too many changes).
+   */
+  const loadData = useCallback(async (mode: 'full' | 'incremental' = 'full') => {
     if (!configLoaded) return;
+    const cfg = configRef.current;
+    const seq = ++loadSeqRef.current;
+    const isCurrent = () => seq === loadSeqRef.current;
     setIsRefreshing(true);
     setLoadError(null);
 
     try {
+      const baseline = watermarkRef.current;
+      const knownUser = currentUserRef.current;
+      if (mode === 'incremental' && baseline && knownUser && !cfg.isDemoMode) {
+        try {
+          const since = watermarkToSince(baseline);
+          const trackerIds = Array.from(
+            new Set([...(cfg.operationalTrackerIds || []), ...(cfg.tacticalTrackerIds || [])])
+          );
+          const [changedRes, inboxRes] = await Promise.all([
+            client.getIssuesSince(trackerIds, since, cfg.maxIssuesLimit),
+            client.getInbox(knownUser),
+          ]);
+          if (!changedRes.success || !changedRes.data) {
+            throw new Error(changedRes.error || 'Falha na sincronização incremental');
+          }
+          if (changedRes.truncated) throw new Error('Alterações demais para sincronização incremental');
+          if (!inboxRes.success || !inboxRes.data) {
+            throw new Error(inboxRes.error || 'Falha ao atualizar o Inbox');
+          }
+          if (!isCurrent()) return;
+
+          const changed = changedRes.data;
+          const inbox = inboxRes.data;
+          const cutoff = closedCutoffDate(cfg);
+          setInboxIds(inbox.ids);
+          setIssues((prev) =>
+            linkChildren(mergeIncremental(prev, changed, inbox.issues, { since, cutoff })).map((i) =>
+              processIssueWithConfig(i, cfg)
+            )
+          );
+          watermarkRef.current = maxUpdatedOn(changed, baseline);
+          setSyncInfo({ at: new Date().toISOString(), mode: 'incremental', count: changed.length });
+          setConnectionHealth((prev) => ({
+            ...prev,
+            status: 'connected',
+            lastChecked: new Date().toISOString(),
+          }));
+          return;
+        } catch (e) {
+          console.warn('Sincronização incremental falhou; fazendo carga completa', e);
+          if (!isCurrent()) return;
+        }
+      }
+
+      // Full load: the old baseline is void until this load completes.
+      watermarkRef.current = null;
       setConnectionHealth((prev) => ({ ...prev, status: 'connecting' }));
 
       // 1. Test Connection & get user
       const userRes = await client.testConnection();
+      if (!isCurrent()) return;
       if (!userRes.success || !userRes.data) {
         setConnectionHealth({
           status: 'error',
@@ -134,6 +218,7 @@ export default function App() {
       }
 
       const activeUser = userRes.data;
+      currentUserRef.current = activeUser;
       setCurrentUser(activeUser);
       setConnectionHealth({
         status: 'connected',
@@ -145,8 +230,8 @@ export default function App() {
 
       const relevantTrackerIds = Array.from(
         new Set([
-          ...(config.operationalTrackerIds || []),
-          ...(config.tacticalTrackerIds || []),
+          ...(cfg.operationalTrackerIds || []),
+          ...(cfg.tacticalTrackerIds || []),
         ])
       );
 
@@ -158,12 +243,13 @@ export default function App() {
         client.getCustomFields(),
         client.getWorkspaceIssues({
           trackerIds: relevantTrackerIds,
-          loadAllStatuses: config.loadAllIssueStatuses,
-          closedLookbackDays: config.closedLookbackDays,
-          maxIssuesLimit: config.maxIssuesLimit,
+          loadAllStatuses: cfg.loadAllIssueStatuses,
+          closedLookbackDays: cfg.closedLookbackDays,
+          maxIssuesLimit: cfg.maxIssuesLimit,
         }),
         client.getInbox(activeUser),
       ]);
+      if (!isCurrent()) return;
 
       if (projRes.success && projRes.data) {
         const sorted = [...projRes.data].sort((a, b) =>
@@ -175,7 +261,7 @@ export default function App() {
       if (statRes.success && statRes.data) setStatuses(statRes.data);
 
       // Status mapping auto-suggest if user hasn't configured any
-      let currentMapping = config.statusMapping;
+      let currentMapping = cfg.statusMapping;
       const hasAnyMapping = Object.values(currentMapping).some((arr) => arr.length > 0);
       if (!hasAnyMapping && statRes.success && statRes.data && statRes.data.length > 0) {
         currentMapping = suggestStatusMapping(statRes.data);
@@ -202,8 +288,12 @@ export default function App() {
       setCustomFields(resolvedCustomFields);
 
       // Process issues with config (blocked flags, strategic initiative names)
-      const processed = linked.map((i) => processIssueWithConfig(i, config));
+      const processed = linked.map((i) => processIssueWithConfig(i, cfg));
       setIssues(processed);
+
+      // Baseline for the next incremental sync. Only trusted if the workspace query itself succeeded.
+      watermarkRef.current = issRes.success ? maxUpdatedOn(allIssues) : null;
+      setSyncInfo({ at: new Date().toISOString(), mode: 'full', count: processed.length });
     } catch (e: any) {
       console.error('Erro ao carregar dados do Redmine', e);
       setConnectionHealth({
@@ -212,10 +302,15 @@ export default function App() {
       });
       setLoadError(e.message || 'Erro inesperado na sincronização');
     } finally {
-      setIsRefreshing(false);
-      setIsLoading(false);
+      // A superseded load must not clear the spinner of the load that replaced it.
+      if (isCurrent()) {
+        setIsRefreshing(false);
+        setIsLoading(false);
+      }
     }
-  }, [client, config, configLoaded]);
+  // dataScopeKey (not `config`): see the comment where it is defined.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, dataScopeKey, configLoaded]);
 
   // Initial check: if not configured, show onboarding
   useEffect(() => {
@@ -257,10 +352,11 @@ export default function App() {
       applyTheme(updates.theme);
     }
 
+    // The settings form always sends the connection fields, so only reload when one really changed.
     if (
-      updates.redmineUrl !== undefined ||
-      updates.apiKey !== undefined ||
-      updates.isDemoMode !== undefined
+      (updates.redmineUrl !== undefined && updates.redmineUrl !== config.redmineUrl) ||
+      (updates.apiKey !== undefined && updates.apiKey !== config.apiKey) ||
+      (updates.isDemoMode !== undefined && updates.isDemoMode !== config.isDemoMode)
     ) {
       setTimeout(() => loadData(), 50);
     } else if (
@@ -600,6 +696,7 @@ export default function App() {
         connectionHealth={connectionHealth}
         config={config}
         onRefresh={loadData}
+        syncInfo={syncInfo}
         onOpenTour={() => setShowTour(true)}
         inboxCount={inboxCount}
         blockedCount={blockedCount}

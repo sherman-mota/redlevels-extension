@@ -12,18 +12,23 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { ConnectionHealth, RedlevelsConfig } from '../types/redmine';
+import type { SyncInfo } from '../services/incrementalSync';
 
 interface HeaderProps {
   currentTab: 'inbox' | 'operacional' | 'tatico' | 'estrategico' | 'configuracao';
   onSelectTab: (tab: 'inbox' | 'operacional' | 'tatico' | 'estrategico' | 'configuracao') => void;
   connectionHealth: ConnectionHealth;
   config: RedlevelsConfig;
-  onRefresh: () => void;
+  onRefresh: (mode: 'full' | 'incremental') => void;
+  syncInfo?: SyncInfo | null;
   onOpenTour: () => void;
   inboxCount: number;
   blockedCount: number;
   isRefreshing: boolean;
 }
+
+const formatTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
@@ -31,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   connectionHealth,
   config,
   onRefresh,
+  syncInfo,
   onOpenTour,
   inboxCount,
   blockedCount,
@@ -190,15 +196,41 @@ export const Header: React.FC<HeaderProps> = ({
               </a>
             )}
 
-            {/* Refresh */}
+            {/* Last synchronization */}
+            {syncInfo && (
+              <span
+                className="hidden lg:block text-[10px] font-mono text-slate-400 whitespace-nowrap"
+                title={
+                  syncInfo.mode === 'incremental'
+                    ? 'Sincronização incremental: só o que mudou desde a última carga'
+                    : 'Carga completa de todas as tarefas'
+                }
+              >
+                {syncInfo.mode === 'incremental'
+                  ? `Atualizado ${formatTime(syncInfo.at)} · ${syncInfo.count} alterada(s)`
+                  : `Carga completa ${formatTime(syncInfo.at)} · ${syncInfo.count} tarefas`}
+              </span>
+            )}
+
+            {/* Incremental sync (default) */}
             <button
-              onClick={onRefresh}
+              onClick={() => onRefresh('incremental')}
               disabled={isRefreshing}
               className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors flex items-center gap-1 disabled:opacity-50"
-              title="Atualizar dados do Redmine"
+              title="Sincronizar: busca só o que mudou desde a última carga"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-rose-400' : ''}`} />
               <span className="hidden sm:inline">Sincronizar</span>
+            </button>
+
+            {/* Full reload */}
+            <button
+              onClick={() => onRefresh('full')}
+              disabled={isRefreshing}
+              className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors disabled:opacity-50"
+              title="Carga completa: recarrega tudo do Redmine (use se algo parecer desatualizado)"
+            >
+              Completa
             </button>
 
             {/* Tour */}
