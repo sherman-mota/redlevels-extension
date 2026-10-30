@@ -21,7 +21,13 @@ export const WATERMARK_SAFETY_MS = 60_000;
 export function dataScopeKey(
   config: Pick<
     RedlevelsConfig,
-    'operationalTrackerIds' | 'tacticalTrackerIds' | 'loadAllIssueStatuses' | 'closedLookbackDays' | 'maxIssuesLimit'
+    | 'operationalTrackerIds'
+    | 'tacticalTrackerIds'
+    | 'loadAllIssueStatuses'
+    | 'closedLookbackDays'
+    | 'maxIssuesLimit'
+    | 'unitProjectIds'
+    | 'unitIncludeSubprojects'
   >
 ): string {
   const sorted = (ids?: number[]) => [...(ids || [])].sort((a, b) => a - b);
@@ -31,6 +37,8 @@ export function dataScopeKey(
     !!config.loadAllIssueStatuses,
     config.closedLookbackDays ?? null,
     config.maxIssuesLimit ?? null,
+    sorted(config.unitProjectIds),
+    config.unitIncludeSubprojects !== false,
   ]);
 }
 
