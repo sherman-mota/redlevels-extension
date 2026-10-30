@@ -41,6 +41,14 @@ import {
   mergeIssues,
 } from './services/redmineApi';
 
+import {
+  SyncInfo,
+  closedCutoffDate,
+  maxUpdatedOn,
+  mergeIncremental,
+  watermarkToSince,
+} from './services/incrementalSync';
+
 import { applyTheme } from './styles/themes';
 import { Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
 
@@ -83,7 +91,12 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
 
+  // Incremental sync bookkeeping (refs: changing them must not re-create loadData or re-render).
+  // Newest `updated_on` the server has sent us; null means "no baseline, next sync must be full".
+  const watermarkRef = useRef<string | null>(null);
+  const currentUserRef = useRef<RedmineUser | undefined>(undefined);
   // Always the latest config, so loadData doesn't need the whole config object as a dependency.
   const configRef = useRef<RedlevelsConfig>(config);
   configRef.current = config;
@@ -126,8 +139,13 @@ export default function App() {
     });
   }, [configLoaded, config.isDemoMode, config.redmineUrl]);
 
-  // Load all data from Redmine
-  const loadData = useCallback(async () => {
+  /**
+   * Loads data from Redmine.
+   * - 'full' (default): everything, every time (first load, scope change, "Carga completa").
+   * - 'incremental': only issues changed since the last load, merged by id. Falls back to a full
+   *   load on any problem (no baseline, request error, too many changes).
+   */
+  const loadData = useCallback(async (mode: 'full' | 'incremental' = 'full') => {
     if (!configLoaded) return;
     const cfg = configRef.current;
     const seq = ++loadSeqRef.current;
@@ -136,6 +154,52 @@ export default function App() {
     setLoadError(null);
 
     try {
+      const baseline = watermarkRef.current;
+      const knownUser = currentUserRef.current;
+      if (mode === 'incremental' && baseline && knownUser && !cfg.isDemoMode) {
+        try {
+          const since = watermarkToSince(baseline);
+          const trackerIds = Array.from(
+            new Set([...(cfg.operationalTrackerIds || []), ...(cfg.tacticalTrackerIds || [])])
+          );
+          const [changedRes, inboxRes] = await Promise.all([
+            client.getIssuesSince(trackerIds, since, cfg.maxIssuesLimit),
+            client.getInbox(knownUser),
+          ]);
+          if (!changedRes.success || !changedRes.data) {
+            throw new Error(changedRes.error || 'Falha na sincronização incremental');
+          }
+          if (changedRes.truncated) throw new Error('Alterações demais para sincronização incremental');
+          if (!inboxRes.success || !inboxRes.data) {
+            throw new Error(inboxRes.error || 'Falha ao atualizar o Inbox');
+          }
+          if (!isCurrent()) return;
+
+          const changed = changedRes.data;
+          const inbox = inboxRes.data;
+          const cutoff = closedCutoffDate(cfg);
+          setInboxIds(inbox.ids);
+          setIssues((prev) =>
+            linkChildren(mergeIncremental(prev, changed, inbox.issues, { since, cutoff })).map((i) =>
+              processIssueWithConfig(i, cfg)
+            )
+          );
+          watermarkRef.current = maxUpdatedOn(changed, baseline);
+          setSyncInfo({ at: new Date().toISOString(), mode: 'incremental', count: changed.length });
+          setConnectionHealth((prev) => ({
+            ...prev,
+            status: 'connected',
+            lastChecked: new Date().toISOString(),
+          }));
+          return;
+        } catch (e) {
+          console.warn('Sincronização incremental falhou; fazendo carga completa', e);
+          if (!isCurrent()) return;
+        }
+      }
+
+      // Full load: the old baseline is void until this load completes.
+      watermarkRef.current = null;
       setConnectionHealth((prev) => ({ ...prev, status: 'connecting' }));
 
       // 1. Test Connection & get user
@@ -154,6 +218,7 @@ export default function App() {
       }
 
       const activeUser = userRes.data;
+      currentUserRef.current = activeUser;
       setCurrentUser(activeUser);
       setConnectionHealth({
         status: 'connected',
@@ -225,6 +290,10 @@ export default function App() {
       // Process issues with config (blocked flags, strategic initiative names)
       const processed = linked.map((i) => processIssueWithConfig(i, cfg));
       setIssues(processed);
+
+      // Baseline for the next incremental sync. Only trusted if the workspace query itself succeeded.
+      watermarkRef.current = issRes.success ? maxUpdatedOn(allIssues) : null;
+      setSyncInfo({ at: new Date().toISOString(), mode: 'full', count: processed.length });
     } catch (e: any) {
       console.error('Erro ao carregar dados do Redmine', e);
       setConnectionHealth({
@@ -627,6 +696,7 @@ export default function App() {
         connectionHealth={connectionHealth}
         config={config}
         onRefresh={loadData}
+        syncInfo={syncInfo}
         onOpenTour={() => setShowTour(true)}
         inboxCount={inboxCount}
         blockedCount={blockedCount}
