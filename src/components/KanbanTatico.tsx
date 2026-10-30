@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Layers,
   AlertTriangle,
@@ -35,6 +35,8 @@ interface KanbanTaticoProps {
   onSelectIssue: (issue: RedmineIssue) => void;
   onMoveIssue: (issueId: number, targetStatusId: number) => Promise<void>;
   isLoading?: boolean;
+  /** Publishes the list currently shown (after filters), used by the CSV export. */
+  onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
 }
 
 export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
@@ -51,6 +53,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   onUpdateColumnOrder,
   onSelectIssue,
   onMoveIssue,
+  onVisibleIssuesChange,
 }) => {
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -187,6 +190,11 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     onlyBlocked,
     selectedCustomFieldFilter,
   ]);
+
+  useEffect(() => {
+    onVisibleIssuesChange?.(tacticalIssues);
+    return () => onVisibleIssuesChange?.([]);
+  }, [tacticalIssues, onVisibleIssuesChange]);
 
   // Statuses that belong to tactical task types
   const tacticalStatuses = useMemo(() => {

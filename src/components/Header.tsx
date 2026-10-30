@@ -9,7 +9,8 @@ import {
   RefreshCw,
   AlertTriangle,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { ConnectionHealth, RedlevelsConfig } from '../types/redmine';
 import type { SyncInfo } from '../services/incrementalSync';
@@ -22,6 +23,9 @@ interface HeaderProps {
   onRefresh: (mode: 'full' | 'incremental') => void;
   syncInfo?: SyncInfo | null;
   onOpenTour: () => void;
+  /** Number of issues the active tab shows (0 disables the CSV button). */
+  exportableCount: number;
+  onExportCsv: () => void;
   inboxCount: number;
   blockedCount: number;
   isRefreshing: boolean;
@@ -38,6 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   syncInfo,
   onOpenTour,
+  exportableCount,
+  onExportCsv,
   inboxCount,
   blockedCount,
   isRefreshing,
@@ -182,6 +188,23 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Action Tools */}
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* CSV export of the issues shown on the active tab */}
+            <button
+              onClick={onExportCsv}
+              disabled={exportableCount === 0}
+              className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors flex items-center gap-1 disabled:opacity-50"
+              title={
+                exportableCount === 0
+                  ? 'Nenhuma tarefa exibida nesta aba para exportar'
+                  : `Exportar para CSV as ${exportableCount} tarefa(s) exibidas (respeita os filtros da tela)`
+              }
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {exportableCount === 0 ? 'CSV' : `CSV (${exportableCount})`}
+              </span>
+            </button>
+
             {/* Open Redmine link if configured */}
             {config.redmineUrl && (
               <a
