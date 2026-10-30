@@ -220,6 +220,38 @@ export class RedmineClient {
     return { success: true, data: items.slice(0, max) };
   }
 
+  /**
+   * Like `requestAll`, but never returns partial data silently: any failing page fails the whole call,
+   * and `truncated` tells the caller that more items exist than `max`. Incremental sync relies on this,
+   * because a missing page would make a stale issue look up to date.
+   */
+  private async requestAllStrict<T>(
+    endpoint: string,
+    key: string,
+    params: Record<string, string | number>,
+    max: number
+  ): Promise<RedmineApiResult<T[]> & { truncated?: boolean }> {
+    const items: T[] = [];
+    let offset = 0;
+    let total = Infinity;
+
+    while (offset < total && items.length < max) {
+      const qs = new URLSearchParams({
+        ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+      });
+      const res = await this.request<Record<string, any>>(`${endpoint}?${qs.toString()}`);
+      if (!res.success || !res.data) return { success: false, error: res.error, status: res.status };
+      const page: T[] = res.data[key] || [];
+      items.push(...page);
+      total = typeof res.data.total_count === 'number' ? res.data.total_count : items.length;
+      if (page.length === 0) break;
+      offset += page.length;
+    }
+    return { success: true, data: items.slice(0, max), truncated: offset < total && items.length >= max };
+  }
+
   async testConnection(): Promise<RedmineApiResult<RedmineUser>> {
     if (this.isDemo) {
       return { success: true, data: DEMO_USER, latencyMs: 12 };
@@ -380,6 +412,35 @@ export class RedmineClient {
 
     if (!open.success) return open;
     return { success: true, data: mergeIssues(open.data || [], closed.data || []) };
+  }
+
+  /**
+   * Incremental counterpart of `getWorkspaceIssues`: only issues changed since `since`
+   * (`updated_on >= since`, any status, open or closed), one query per tracker, paginated strictly.
+   * Fails as a whole if any page fails, and reports `truncated` when the changes exceed the limit,
+   * so the caller can fall back to a full load instead of merging incomplete data.
+   */
+  async getIssuesSince(
+    trackerIds: number[],
+    since: string,
+    maxIssuesLimit?: number
+  ): Promise<RedmineApiResult<RedmineIssue[]> & { truncated?: boolean }> {
+    if (this.isDemo) return { success: true, data: [] };
+
+    const max = maxIssuesLimit && maxIssuesLimit > 0 ? maxIssuesLimit : DEFAULT_MAX_ISSUES;
+    const base = { status_id: '*', sort: 'updated_on:desc', updated_on: `>=${since}` };
+    const queries = trackerIds.length > 0 ? trackerIds.map((id) => ({ ...base, tracker_id: id })) : [base];
+
+    const results = await Promise.all(
+      queries.map((q) => this.requestAllStrict<RedmineIssue>('/issues.json', 'issues', q, max))
+    );
+    const failed = results.find((r) => !r.success);
+    if (failed) return { success: false, error: failed.error, status: failed.status };
+    return {
+      success: true,
+      truncated: results.some((r) => r.truncated),
+      data: mergeIssues(...results.map((r) => r.data || [])),
+    };
   }
 
   /**
