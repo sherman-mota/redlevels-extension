@@ -203,12 +203,16 @@ export const Header: React.FC<HeaderProps> = ({
                 title={
                   syncInfo.mode === 'incremental'
                     ? 'Sincronização incremental: só o que mudou desde a última carga'
-                    : 'Carga completa de todas as tarefas'
+                    : syncInfo.mode === 'cache'
+                      ? 'Tarefas guardadas neste computador; buscando o que mudou no Redmine'
+                      : 'Carga completa de todas as tarefas'
                 }
               >
                 {syncInfo.mode === 'incremental'
                   ? `Atualizado ${formatTime(syncInfo.at)} · ${syncInfo.count} alterada(s)`
-                  : `Carga completa ${formatTime(syncInfo.at)} · ${syncInfo.count} tarefas`}
+                  : syncInfo.mode === 'cache'
+                    ? `Dados guardados ${formatTime(syncInfo.at)} · ${syncInfo.count} tarefas`
+                    : `Carga completa ${formatTime(syncInfo.at)} · ${syncInfo.count} tarefas`}
               </span>
             )}
 

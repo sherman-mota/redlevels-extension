@@ -38,8 +38,9 @@ export function dataScopeKey(
 export interface SyncInfo {
   /** Local time the sync finished (ISO). Display only, never used for queries. */
   at: string;
-  mode: 'full' | 'incremental';
-  /** Full: issues loaded. Incremental: issues returned as changed. */
+  /** `cache`: showing the local snapshot; the sync that follows replaces it. */
+  mode: 'full' | 'incremental' | 'cache';
+  /** Full / cache: issues held. Incremental: issues returned as changed. */
   count: number;
 }
 
