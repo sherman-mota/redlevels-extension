@@ -37,6 +37,7 @@ import { THEMES, applyTheme } from '../styles/themes';
 import { RedmineClient, requestHostPermission, normalizeRedmineUrl } from '../services/redmineApi';
 import { normalizeStatusMapping } from '../services/storage';
 import { buildColumns, COLUMN_META } from './KanbanBoard';
+import { LocalCachePanel } from './LocalCachePanel';
 
 interface ConfiguracaoViewProps {
   config: RedlevelsConfig;
@@ -46,6 +47,7 @@ interface ConfiguracaoViewProps {
   currentUser?: RedmineUser;
   onSaveConfig: (updated: Partial<RedlevelsConfig>) => Promise<void>;
   onResetDemoData: () => void;
+  cacheError?: string | null;
 }
 
 export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
@@ -55,6 +57,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
   statuses,
   onSaveConfig,
   onResetDemoData,
+  cacheError,
 }) => {
   // Local form state
   const [url, setUrl] = useState(config.redmineUrl);
@@ -1160,6 +1163,9 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Cache local das tarefas */}
+      <LocalCachePanel config={config} onSaveConfig={onSaveConfig} cacheError={cacheError} />
 
       {/* Requisito 4 & 5: Custom Fields de Iniciativa Estratégica e Bloqueio */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

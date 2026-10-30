@@ -934,6 +934,7 @@ export default function App() {
                 currentUser={currentUser}
                 onSaveConfig={handleUpdateConfig}
                 onResetDemoData={handleResetDemoData}
+                cacheError={cacheError}
               />
             )}
           </>
