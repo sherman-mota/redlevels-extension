@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { KanbanColumnKey, RedmineIssue, RedmineStatus, StatusMapping } from '../types/redmine';
 import { normalizeStatusMapping } from '../services/storage';
+import { CardMetaLine } from './CardMetaLine';
 
 export const COLUMN_META: Record<KanbanColumnKey, { label: string; dot: string; chip: string }> = {
   backlog: { label: 'Backlog', dot: 'bg-slate-400', chip: 'bg-slate-800 text-slate-300 border-slate-700' },
@@ -470,6 +471,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                   <Loader2 className="absolute top-2 right-2 w-3.5 h-3.5 animate-spin text-slate-400" />
                                 )}
                                 {renderCard(issue)}
+                                {/* Age, stale days and due date of unfinished issues (all Kanban boards) */}
+                                {!isDone && <CardMetaLine issue={issue} compact={lightView} />}
                               </div>
                             );
                           })
