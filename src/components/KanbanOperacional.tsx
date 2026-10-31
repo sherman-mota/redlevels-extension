@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping } from '../types/redmine';
-import { KanbanBoard, buildColumns, BoardLane, BoardColumn } from './KanbanBoard';
+import { KanbanBoard, buildColumns, summarizeUnmapped, BoardLane, BoardColumn } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 
 interface KanbanOperacionalProps {
@@ -209,6 +209,12 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     onlyBlocked,
     filterParentId,
   ]);
+
+  // Statuses of the shown issues that are in no mapping category (see Configuração › Mapeamento de status)
+  const unmapped = useMemo(
+    () => summarizeUnmapped(operationalIssues, statusMapping),
+    [operationalIssues, statusMapping]
+  );
 
   // Swimlanes builder per tracker
   const buildTrackerLanes = useCallback(
@@ -540,6 +546,17 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                   </span>
                 );
               })()}
+              {unmapped.count > 0 && (
+                <span
+                  className="text-xs px-2.5 py-0.5 rounded-full font-mono border bg-amber-950/60 text-amber-300 border-amber-800/80 font-bold"
+                  title={`${unmapped.count} tarefa(s) em status sem categoria no mapeamento (continuam no quadro, em colunas extras, mas não contam como concluídas):\n${unmapped.byStatus
+                    .map((s) => `• ${s.name}: ${s.count}`)
+                    .join('\n')}\nAjuste em Configuração › Mapeamento de status.`}
+                >
+                  <span aria-hidden="true">▲ </span>
+                  {unmapped.count} sem mapeamento
+                </span>
+              )}
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
               Kanban de tarefas operacionais individualizado por Tracker com status específicos. Arraste cards para atualizar o status.

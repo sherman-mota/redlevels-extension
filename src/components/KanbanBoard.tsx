@@ -61,6 +61,31 @@ export function buildColumns(
   return defaultCols;
 }
 
+export interface UnmappedSummary {
+  count: number;
+  byStatus: { name: string; count: number }[];
+}
+
+/**
+ * Issues whose status belongs to none of the mapping categories (backlog, analysis, in progress, done).
+ * They still appear on the board, in extra columns without a category, but are not treated as done and
+ * do not count in the stage-based views, so it is worth telling the user.
+ */
+export function summarizeUnmapped(issues: RedmineIssue[], mapping: StatusMapping): UnmappedSummary {
+  const norm = normalizeStatusMapping(mapping);
+  const mapped = new Set<number>(COLUMN_ORDER.flatMap((key) => norm[key] || []));
+  // With no mapping at all, every status is "unmapped"; that is the mapping screen's business, not a warning.
+  if (mapped.size === 0) return { count: 0, byStatus: [] };
+
+  const counts = new Map<string, number>();
+  issues.forEach((issue) => {
+    if (mapped.has(issue.status.id)) return;
+    counts.set(issue.status.name, (counts.get(issue.status.name) || 0) + 1);
+  });
+  const byStatus = Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  return { count: byStatus.reduce((sum, s) => sum + s.count, 0), byStatus };
+}
+
 export function isDoneColumn(col: { status: RedmineStatus; category?: KanbanColumnKey }): boolean {
   if (col.category === 'done') return true;
   if (col.status.is_closed) return true;
