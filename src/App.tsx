@@ -443,9 +443,11 @@ export default function App() {
   };
 
   // Move issue (Kanban Drag & Drop) -> Requisito: PUT /issues/[id].json
-  const handleMoveIssue = async (issueId: number, targetStatusId: number) => {
+  // `isUndo`: this move reverts a previous one, so it does not offer another undo.
+  const handleMoveIssue = async (issueId: number, targetStatusId: number, options?: { isUndo?: boolean }) => {
     const previousIssues = [...issues];
     const knownIssue = issues.find((iss) => iss.id === issueId);
+    const fromStatus = knownIssue?.status;
     const statusObj = statuses.find((s) => s.id === targetStatusId);
 
     // Optimistic UI update
@@ -518,6 +520,22 @@ export default function App() {
           });
         } else if (res.success) {
           refreshIssuesSilently();
+          if (fromStatus && fromStatus.id !== targetStatusId) {
+            pushToast({
+              kind: 'success',
+              text: options?.isUndo
+                ? `#${issueId} voltou para "${statusObj?.name}".`
+                : `#${issueId} movida de "${fromStatus.name}" para "${statusObj?.name}".`,
+              durationMs: 10000,
+              // Through the ref: the closure of this render would see the issue as it was before the move.
+              action: options?.isUndo
+                ? undefined
+                : {
+                    label: 'Desfazer',
+                    onClick: () => moveIssueRef.current(issueId, fromStatus.id, { isUndo: true }),
+                  },
+            });
+          }
         }
       } else if (!res.success) {
         // Rollback
@@ -535,6 +553,10 @@ export default function App() {
       });
     }
   };
+
+  // Always points at the latest handleMoveIssue, so the "Desfazer" button of a toast acts on current state.
+  const moveIssueRef = useRef(handleMoveIssue);
+  moveIssueRef.current = handleMoveIssue;
 
   // Update status with notes -> Requisito: O Kanban e modal sempre devem refletir o status real do Redmine
   const handleUpdateStatus = async (issueId: number, statusId: number, notes?: string) => {
