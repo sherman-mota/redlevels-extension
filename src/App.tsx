@@ -9,6 +9,7 @@ import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
 import { InboxView } from './components/InboxView';
 import { ConfiguracaoView } from './components/ConfiguracaoView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastHost, useToasts } from './components/ToastHost';
 import { downloadCsv } from './services/csvExport';
 
 import {
@@ -95,6 +96,9 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
+
+  // Non-blocking notices (replace alert() in the Kanban move flow)
+  const { toasts, pushToast, dismissToast } = useToasts();
 
   // Incremental sync bookkeeping (refs: changing them must not re-create loadData or re-render).
   // Newest `updated_on` the server has sent us; null means "no baseline, next sync must be full".
@@ -481,11 +485,12 @@ export default function App() {
           if (selectedIssue && selectedIssue.id === issueId) {
             setSelectedIssue(fresh);
           }
-          alert(
-            changedByOthers
+          pushToast({
+            kind: 'warning',
+            text: changedByOthers
               ? `A tarefa #${issueId} foi alterada no Redmine desde o último carregamento (agora em "${server.status?.name}"). Nada foi gravado; o quadro foi atualizado. Confira e mova novamente se ainda fizer sentido.`
-              : `O fluxo de trabalho do Redmine não permite mover a tarefa #${issueId} de "${server.status?.name}" para "${statusObj?.name || targetStatusId}". Nada foi gravado.`
-          );
+              : `O fluxo de trabalho do Redmine não permite mover a tarefa #${issueId} de "${server.status?.name}" para "${statusObj?.name || targetStatusId}". Nada foi gravado.`,
+          });
           return;
         }
       }
@@ -504,22 +509,24 @@ export default function App() {
           const target = statusObj?.name || targetStatusId;
           // PUT failed (e.g. HTTP 422, permission): show what Redmine said. PUT succeeded but the
           // status did not change: Redmine silently ignored it, which is what the workflow rules do.
-          alert(
-            !res.success && res.error
-              ? `Não foi possível mover para "${target}": ${res.error}. O status atual da tarefa permanece como "${res.data.status?.name}".`
-              : `A transição para "${target}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`
-          );
+          pushToast({
+            kind: !res.success && res.error ? 'error' : 'warning',
+            text:
+              !res.success && res.error
+                ? `Não foi possível mover para "${target}": ${res.error}. O status atual da tarefa permanece como "${res.data.status?.name}".`
+                : `A transição para "${target}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`,
+          });
         } else if (res.success) {
           refreshIssuesSilently();
         }
       } else if (!res.success) {
         // Rollback
         setIssues(previousIssues);
-        alert(`Falha ao atualizar status no Redmine: ${res.error}`);
+        pushToast({ kind: 'error', text: `Falha ao atualizar status no Redmine: ${res.error}` });
       }
     } catch (e: any) {
       setIssues(previousIssues);
-      alert(`Erro na requisição PUT ao Redmine: ${e.message}`);
+      pushToast({ kind: 'error', text: `Erro na requisição PUT ao Redmine: ${e.message}` });
     } finally {
       setPendingIssueIds((prev) => {
         const next = new Set(prev);
@@ -934,6 +941,8 @@ export default function App() {
           onSelectIssueById={handleSelectIssueById}
         />
       </ErrorBoundary>
+
+      <ToastHost toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
