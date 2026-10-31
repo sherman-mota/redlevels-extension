@@ -12,10 +12,12 @@ import {
   ExternalLink,
   Download,
   Users,
-  Activity
+  Activity,
+  LayoutDashboard
 } from 'lucide-react';
 import { ConnectionHealth, RedlevelsConfig, TabKey } from '../types/redmine';
 import type { SyncInfo } from '../services/incrementalSync';
+import { LevelHealth, LevelKey, verdictOf } from '../services/levelHealth';
 
 interface HeaderProps {
   currentTab: TabKey;
@@ -31,12 +33,30 @@ interface HeaderProps {
   exportableCount: number;
   onExportCsv: () => void;
   inboxCount: number;
-  blockedCount: number;
+  /** Health of each level; the tab shows a badge when it is not healthy. */
+  levelHealth: Record<LevelKey, LevelHealth>;
   isRefreshing: boolean;
 }
 
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+/** ▲ problems / ● attention next to a level tab; nothing when the level is healthy. */
+const LevelBadge: React.FC<{ level: LevelKey; health: LevelHealth; active: boolean }> = ({ level, health, active }) => {
+  if (health.state === 'ok') return null;
+  const tone = active
+    ? 'bg-white/20 text-white'
+    : health.state === 'problema'
+      ? 'bg-rose-500/30 text-rose-300'
+      : 'bg-amber-500/25 text-amber-300';
+  const title = `${verdictOf(level, health).label}: ${verdictOf(level, health).detail}`;
+  return (
+    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${tone}`} title={title} aria-label={title}>
+      <span aria-hidden="true">{health.state === 'problema' ? '▲' : '●'}</span>
+      {health.count > 0 && ` ${health.count}`}
+    </span>
+  );
+};
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
@@ -50,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
   exportableCount,
   onExportCsv,
   inboxCount,
-  blockedCount,
+  levelHealth,
   isRefreshing,
 }) => {
   return (
@@ -126,6 +146,17 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Navigation Tabs */}
           <nav className="flex items-center gap-1 overflow-x-auto py-1 scrollbar-none">
             <button
+              onClick={() => onSelectTab('panorama')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'panorama'
+                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Panorama</span>
+            </button>
+
+            <button
               onClick={() => onSelectTab('inbox')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'inbox'
                   ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
@@ -151,9 +182,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Kanban className="w-3.5 h-3.5" />
               <span>Operacional</span>
-              {blockedCount > 0 && (
-                <span className="flex h-2 w-2 rounded-full bg-amber-400" title={`${blockedCount} itens com impedimento`} />
-              )}
+              <LevelBadge level="operacional" health={levelHealth.operacional} active={currentTab === 'operacional'} />
             </button>
 
             <button
@@ -165,6 +194,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Layers className="w-3.5 h-3.5" />
               <span>Tático</span>
+              <LevelBadge level="tatico" health={levelHealth.tatico} active={currentTab === 'tatico'} />
             </button>
 
             <button
@@ -176,6 +206,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <GitBranch className="w-3.5 h-3.5" />
               <span>Estratégico</span>
+              <LevelBadge level="estrategico" health={levelHealth.estrategico} active={currentTab === 'estrategico'} />
             </button>
 
             <button
