@@ -7,6 +7,7 @@ import { KanbanOperacional } from './components/KanbanOperacional';
 import { KanbanTatico } from './components/KanbanTatico';
 import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
 import { EquipesView } from './components/EquipesView';
+import { FluxoView } from './components/FluxoView';
 import { InboxView } from './components/InboxView';
 import { ConfiguracaoView } from './components/ConfiguracaoView';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -1009,6 +1010,15 @@ export default function App() {
                 issues={issues}
                 config={config}
                 onSaveTeams={(teams) => handleUpdateConfig({ teams })}
+                onSelectIssue={handleSelectIssue}
+                onVisibleIssuesChange={setVisibleIssues}
+              />
+            )}
+            {currentTab === 'fluxo' && (
+              <FluxoView
+                issues={issues}
+                config={config}
+                onSaveWipLimits={(wipLimits) => handleUpdateConfig({ wipLimits })}
                 onSelectIssue={handleSelectIssue}
                 onVisibleIssuesChange={setVisibleIssues}
               />
