@@ -9,6 +9,7 @@ import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
 import { InboxView } from './components/InboxView';
 import { ConfiguracaoView } from './components/ConfiguracaoView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastHost, useToasts } from './components/ToastHost';
 import { downloadCsv } from './services/csvExport';
 
 import {
@@ -99,6 +100,9 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
+
+  // Non-blocking notices (replace alert() in the Kanban move flow)
+  const { toasts, pushToast, dismissToast } = useToasts();
 
   // Incremental sync bookkeeping (refs: changing them must not re-create loadData or re-render).
   // Newest `updated_on` the server has sent us; null means "no baseline, next sync must be full".
@@ -528,9 +532,11 @@ export default function App() {
   };
 
   // Move issue (Kanban Drag & Drop) -> Requisito: PUT /issues/[id].json
-  const handleMoveIssue = async (issueId: number, targetStatusId: number) => {
+  // `isUndo`: this move reverts a previous one, so it does not offer another undo.
+  const handleMoveIssue = async (issueId: number, targetStatusId: number, options?: { isUndo?: boolean }) => {
     const previousIssues = [...issues];
     const knownIssue = issues.find((iss) => iss.id === issueId);
+    const fromStatus = knownIssue?.status;
     const statusObj = statuses.find((s) => s.id === targetStatusId);
 
     // Optimistic UI update
@@ -570,11 +576,12 @@ export default function App() {
           if (selectedIssue && selectedIssue.id === issueId) {
             setSelectedIssue(fresh);
           }
-          alert(
-            changedByOthers
+          pushToast({
+            kind: 'warning',
+            text: changedByOthers
               ? `A tarefa #${issueId} foi alterada no Redmine desde o último carregamento (agora em "${server.status?.name}"). Nada foi gravado; o quadro foi atualizado. Confira e mova novamente se ainda fizer sentido.`
-              : `O fluxo de trabalho do Redmine não permite mover a tarefa #${issueId} de "${server.status?.name}" para "${statusObj?.name || targetStatusId}". Nada foi gravado.`
-          );
+              : `O fluxo de trabalho do Redmine não permite mover a tarefa #${issueId} de "${server.status?.name}" para "${statusObj?.name || targetStatusId}". Nada foi gravado.`,
+          });
           return;
         }
       }
@@ -593,22 +600,40 @@ export default function App() {
           const target = statusObj?.name || targetStatusId;
           // PUT failed (e.g. HTTP 422, permission): show what Redmine said. PUT succeeded but the
           // status did not change: Redmine silently ignored it, which is what the workflow rules do.
-          alert(
-            !res.success && res.error
-              ? `Não foi possível mover para "${target}": ${res.error}. O status atual da tarefa permanece como "${res.data.status?.name}".`
-              : `A transição para "${target}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`
-          );
+          pushToast({
+            kind: !res.success && res.error ? 'error' : 'warning',
+            text:
+              !res.success && res.error
+                ? `Não foi possível mover para "${target}": ${res.error}. O status atual da tarefa permanece como "${res.data.status?.name}".`
+                : `A transição para "${target}" não foi permitida pelas regras de fluxo de trabalho do Redmine. O status atual da tarefa permanece como "${res.data.status?.name}".`,
+          });
         } else if (res.success) {
           refreshIssuesSilently();
+          if (fromStatus && fromStatus.id !== targetStatusId) {
+            pushToast({
+              kind: 'success',
+              text: options?.isUndo
+                ? `#${issueId} voltou para "${statusObj?.name}".`
+                : `#${issueId} movida de "${fromStatus.name}" para "${statusObj?.name}".`,
+              durationMs: 10000,
+              // Through the ref: the closure of this render would see the issue as it was before the move.
+              action: options?.isUndo
+                ? undefined
+                : {
+                    label: 'Desfazer',
+                    onClick: () => moveIssueRef.current(issueId, fromStatus.id, { isUndo: true }),
+                  },
+            });
+          }
         }
       } else if (!res.success) {
         // Rollback
         setIssues(previousIssues);
-        alert(`Falha ao atualizar status no Redmine: ${res.error}`);
+        pushToast({ kind: 'error', text: `Falha ao atualizar status no Redmine: ${res.error}` });
       }
     } catch (e: any) {
       setIssues(previousIssues);
-      alert(`Erro na requisição PUT ao Redmine: ${e.message}`);
+      pushToast({ kind: 'error', text: `Erro na requisição PUT ao Redmine: ${e.message}` });
     } finally {
       setPendingIssueIds((prev) => {
         const next = new Set(prev);
@@ -617,6 +642,10 @@ export default function App() {
       });
     }
   };
+
+  // Always points at the latest handleMoveIssue, so the "Desfazer" button of a toast acts on current state.
+  const moveIssueRef = useRef(handleMoveIssue);
+  moveIssueRef.current = handleMoveIssue;
 
   // Update status with notes -> Requisito: O Kanban e modal sempre devem refletir o status real do Redmine
   const handleUpdateStatus = async (issueId: number, statusId: number, notes?: string) => {
@@ -1026,6 +1055,8 @@ export default function App() {
           onSelectIssueById={handleSelectIssueById}
         />
       </ErrorBoundary>
+
+      <ToastHost toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

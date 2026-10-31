@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Focus, Loader2 } from 'lucide-react';
 import { KanbanColumnKey, RedmineIssue, RedmineStatus, StatusMapping } from '../types/redmine';
 import { normalizeStatusMapping } from '../services/storage';
+import { CardMetaLine } from './CardMetaLine';
+import { cardHealth } from '../services/cardHealth';
 
 export const COLUMN_META: Record<KanbanColumnKey, { label: string; dot: string; chip: string }> = {
   backlog: { label: 'Backlog', dot: 'bg-slate-400', chip: 'bg-slate-800 text-slate-300 border-slate-700' },
@@ -11,6 +13,48 @@ export const COLUMN_META: Record<KanbanColumnKey, { label: string; dot: string; 
 };
 const COLUMN_ORDER: KanbanColumnKey[] = ['backlog', 'analysis', 'in_progress', 'done'];
 const PAGE = 40;
+
+const FOCUS_STORAGE_KEY = 'redlevels_kanban_focus_problems';
+
+/** "Focus on problems" switch, remembered between sessions. */
+export function useFocusProblems(): [boolean, (value: boolean) => void] {
+  const [focus, setFocus] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(FOCUS_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const update = (value: boolean) => {
+    setFocus(value);
+    try {
+      localStorage.setItem(FOCUS_STORAGE_KEY, String(value));
+    } catch {
+      // ignore
+    }
+  };
+  return [focus, update];
+}
+
+export const FocusProblemsToggle: React.FC<{ active: boolean; onChange: (value: boolean) => void }> = ({
+  active,
+  onChange,
+}) => (
+  <button
+    type="button"
+    onClick={() => onChange(!active)}
+    aria-pressed={active}
+    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-medium transition-colors shadow-sm ${
+      active
+        ? 'bg-rose-950/60 border-rose-700/80 text-rose-200'
+        : 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+    }`}
+    title="Esmaece os cards sem problema (bloqueados ou atrasados continuam em destaque); passe o mouse sobre um card esmaecido para vê-lo normal"
+  >
+    <Focus className="w-3.5 h-3.5 text-rose-400" />
+    <span>Foco em problemas{active ? ': ligado' : ''}</span>
+  </button>
+);
 
 export interface BoardColumn {
   status: RedmineStatus;
@@ -61,6 +105,31 @@ export function buildColumns(
   return defaultCols;
 }
 
+export interface UnmappedSummary {
+  count: number;
+  byStatus: { name: string; count: number }[];
+}
+
+/**
+ * Issues whose status belongs to none of the mapping categories (backlog, analysis, in progress, done).
+ * They still appear on the board, in extra columns without a category, but are not treated as done and
+ * do not count in the stage-based views, so it is worth telling the user.
+ */
+export function summarizeUnmapped(issues: RedmineIssue[], mapping: StatusMapping): UnmappedSummary {
+  const norm = normalizeStatusMapping(mapping);
+  const mapped = new Set<number>(COLUMN_ORDER.flatMap((key) => norm[key] || []));
+  // With no mapping at all, every status is "unmapped"; that is the mapping screen's business, not a warning.
+  if (mapped.size === 0) return { count: 0, byStatus: [] };
+
+  const counts = new Map<string, number>();
+  issues.forEach((issue) => {
+    if (mapped.has(issue.status.id)) return;
+    counts.set(issue.status.name, (counts.get(issue.status.name) || 0) + 1);
+  });
+  const byStatus = Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  return { count: byStatus.reduce((sum, s) => sum + s.count, 0), byStatus };
+}
+
 export function isDoneColumn(col: { status: RedmineStatus; category?: KanbanColumnKey }): boolean {
   if (col.category === 'done') return true;
   if (col.status.is_closed) return true;
@@ -90,6 +159,8 @@ interface KanbanBoardProps {
   onToggleLaneCollapse?: (laneKey: string) => void;
   initialCollapseDone?: boolean;
   lightView?: boolean;
+  /** Fade the cards that are fine (ok / done) so blocked and overdue ones stand out. */
+  focusProblems?: boolean;
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -107,6 +178,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onToggleLaneCollapse,
   initialCollapseDone = true,
   lightView = false,
+  focusProblems = false,
 }) => {
   const [dragged, setDragged] = useState<{ id: number; statusId: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -409,9 +481,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           visible.map((issue) => {
                             const pending = pendingIssueIds.has(issue.id);
                             const isDragging = dragged?.id === issue.id;
+                            const health = cardHealth(issue, isDone);
                             return (
                               <div
                                 key={issue.id}
+                                data-saude={health}
                                 draggable={!pending}
                                 onDragStart={(e) => {
                                   e.dataTransfer.setData('text/plain', String(issue.id));
@@ -439,12 +513,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                   ? 'bg-slate-950/70 border-slate-800/70 hover:bg-slate-900/90 hover:border-slate-700'
                                   : 'bg-slate-950/80 border-slate-800/90 hover:bg-slate-900'
                                   } ${isDragging ? 'opacity-40 scale-[0.97]' : 'hover:-translate-y-0.5 hover:shadow-md'} ${pending ? 'opacity-70 pointer-events-none' : ''
+                                  } ${health === 'problema' ? 'border-l-[5px] border-l-rose-500 ring-1 ring-rose-500/40' : ''} ${
+                                    focusProblems && (health === 'ok' || health === 'done') && !isDragging
+                                      ? 'opacity-40 saturate-50 hover:opacity-100 hover:saturate-100 focus-within:opacity-100 focus-within:saturate-100'
+                                      : ''
                                   }`}
                               >
                                 {pending && (
                                   <Loader2 className="absolute top-2 right-2 w-3.5 h-3.5 animate-spin text-slate-400" />
                                 )}
                                 {renderCard(issue)}
+                                {/* Age, stale days and due date of unfinished issues (all Kanban boards) */}
+                                {!isDone && <CardMetaLine issue={issue} compact={lightView} />}
                               </div>
                             );
                           })
