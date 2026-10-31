@@ -6,6 +6,7 @@ import { IssueDetailModal } from './components/IssueDetailModal';
 import { KanbanOperacional } from './components/KanbanOperacional';
 import { KanbanTatico } from './components/KanbanTatico';
 import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
+import { EquipesView } from './components/EquipesView';
 import { InboxView } from './components/InboxView';
 import { ConfiguracaoView } from './components/ConfiguracaoView';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -22,6 +23,7 @@ import {
   RedmineUser,
   ConnectionHealth,
   InboxIds,
+  TabKey,
 } from './types/redmine';
 
 import {
@@ -83,7 +85,7 @@ export default function App() {
   const [trackerStatusIds, setTrackerStatusIds] = useState<Record<number, number[]>>({});
 
   // Navigation state
-  const [currentTab, setCurrentTab] = useState<'inbox' | 'operacional' | 'tatico' | 'estrategico' | 'configuracao'>('operacional');
+  const [currentTab, setCurrentTab] = useState<TabKey>('operacional');
   // Issues the active tab is displaying (filters applied); published by the tab, used by the CSV export
   const [visibleIssues, setVisibleIssues] = useState<RedmineIssue[]>([]);
 
@@ -1000,6 +1002,15 @@ export default function App() {
                 strategicCustomFieldId={config.strategicCustomFieldId}
                 onSelectIssue={handleSelectIssue}
                 onUpdateStatus={handleUpdateStatus}
+              />
+            )}
+            {currentTab === 'equipes' && (
+              <EquipesView
+                issues={issues}
+                config={config}
+                onSaveTeams={(teams) => handleUpdateConfig({ teams })}
+                onSelectIssue={handleSelectIssue}
+                onVisibleIssuesChange={setVisibleIssues}
               />
             )}
             {currentTab === 'configuracao' && (
