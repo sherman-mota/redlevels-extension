@@ -1,4 +1,6 @@
-import type { KanbanColumnKey, RedlevelsConfig, RedmineIssue, StatusMapping } from '../types/redmine';
+import type { KanbanColumnKey, RedlevelsConfig, RedmineIssue } from '../types/redmine';
+import { stageKeyOf } from './issueStage';
+import { teamNameOf, teamsOf } from './teams';
 
 /**
  * CSV export of the issues shown on the active tab.
@@ -13,7 +15,6 @@ const STAGE_LABELS: Record<KanbanColumnKey, string> = {
   in_progress: 'Em andamento',
   done: 'Concluída',
 };
-const STAGE_ORDER: KanbanColumnKey[] = ['backlog', 'analysis', 'in_progress', 'done'];
 const NO_MAPPING = 'Sem mapeamento';
 
 export const CSV_HEADER = [
@@ -24,6 +25,7 @@ export const CSV_HEADER = [
   'Status',
   'Etapa',
   'Responsável',
+  'Equipe',
   'Autor',
   'Prioridade',
   'Início',
@@ -56,15 +58,8 @@ const formatDateTime = (s?: string | null) => {
 
 /** Kanban stage of an issue according to the status mapping of its level (tactical or operational). */
 export function stageOf(issue: RedmineIssue, config: RedlevelsConfig): string {
-  const isTactical = config.tacticalTrackerIds.includes(issue.tracker?.id);
-  const mapping: Partial<StatusMapping> =
-    (isTactical ? config.tacticalStatusMapping : config.operationalStatusMapping) ||
-    config.statusMapping ||
-    {};
-  for (const key of STAGE_ORDER) {
-    if (mapping[key]?.includes(issue.status?.id)) return STAGE_LABELS[key];
-  }
-  return issue.status?.is_closed ? STAGE_LABELS.done : NO_MAPPING;
+  const key = stageKeyOf(issue, config);
+  return key === 'other' ? NO_MAPPING : STAGE_LABELS[key];
 }
 
 /** Builds the CSV text (without BOM). Duplicated ids are written once; rows are sorted by id. */
@@ -75,6 +70,7 @@ export function buildCsv(issues: RedmineIssue[], config: RedlevelsConfig, now: D
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
   const baseUrl = (config.redmineUrl || '').replace(/\/+$/, '');
+  const teams = teamsOf(config);
 
   const rows = unique
     .sort((a, b) => a.id - b.id)
@@ -90,6 +86,7 @@ export function buildCsv(issues: RedmineIssue[], config: RedlevelsConfig, now: D
         i.status?.name,
         stage,
         i.assigned_to?.name ?? 'Sem responsável',
+        teamNameOf(i, teams),
         i.author?.name,
         i.priority?.name,
         formatDate(i.start_date),
