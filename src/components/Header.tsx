@@ -22,6 +22,8 @@ interface HeaderProps {
   config: RedlevelsConfig;
   onRefresh: (mode: 'full' | 'incremental') => void;
   syncInfo?: SyncInfo | null;
+  /** Active unit scope (null/undefined = no restriction). */
+  unitChip?: { label: string; title: string } | null;
   onOpenTour: () => void;
   /** Number of issues the active tab shows (0 disables the CSV button). */
   exportableCount: number;
@@ -41,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   config,
   onRefresh,
   syncInfo,
+  unitChip,
   onOpenTour,
   exportableCount,
   onExportCsv,
@@ -219,6 +222,16 @@ export const Header: React.FC<HeaderProps> = ({
               </a>
             )}
 
+            {/* Active unit scope */}
+            {unitChip && (
+              <span
+                className="hidden md:block text-xs px-2.5 py-1 rounded-full border bg-slate-800 text-slate-200 border-slate-700 truncate max-w-[260px]"
+                title={unitChip.title}
+              >
+                {unitChip.label}
+              </span>
+            )}
+
             {/* Last synchronization */}
             {syncInfo && (
               <span
@@ -226,12 +239,16 @@ export const Header: React.FC<HeaderProps> = ({
                 title={
                   syncInfo.mode === 'incremental'
                     ? 'Sincronização incremental: só o que mudou desde a última carga'
-                    : 'Carga completa de todas as tarefas'
+                    : syncInfo.mode === 'cache'
+                      ? 'Tarefas guardadas neste computador; buscando o que mudou no Redmine'
+                      : 'Carga completa de todas as tarefas'
                 }
               >
                 {syncInfo.mode === 'incremental'
                   ? `Atualizado ${formatTime(syncInfo.at)} · ${syncInfo.count} alterada(s)`
-                  : `Carga completa ${formatTime(syncInfo.at)} · ${syncInfo.count} tarefas`}
+                  : syncInfo.mode === 'cache'
+                    ? `Dados guardados ${formatTime(syncInfo.at)} · ${syncInfo.count} tarefas`
+                    : `Carga completa ${formatTime(syncInfo.at)} · ${syncInfo.count} tarefas`}
               </span>
             )}
 

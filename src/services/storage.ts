@@ -7,7 +7,7 @@ const DEMO_ISSUES_STORAGE_KEY = 'redlevels_demo_issues_v1';
 /** True when running as an installed extension page (chrome.storage available). */
 const hasChromeStorage = typeof chrome !== 'undefined' && !!chrome.storage?.local;
 
-async function getItem<T>(key: string): Promise<T | undefined> {
+export async function getItem<T>(key: string): Promise<T | undefined> {
   if (hasChromeStorage) {
     const result = await chrome.storage.local.get(key);
     return result[key] as T | undefined;
@@ -17,7 +17,7 @@ async function getItem<T>(key: string): Promise<T | undefined> {
   return raw ? (JSON.parse(raw) as T) : undefined;
 }
 
-async function setItem(key: string, value: unknown): Promise<void> {
+export async function setItem(key: string, value: unknown): Promise<void> {
   if (hasChromeStorage) {
     await chrome.storage.local.set({ [key]: value });
     return;
@@ -25,7 +25,7 @@ async function setItem(key: string, value: unknown): Promise<void> {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-async function removeItem(key: string): Promise<void> {
+export async function removeItem(key: string): Promise<void> {
   if (hasChromeStorage) {
     await chrome.storage.local.remove(key);
     return;
@@ -68,6 +68,7 @@ export const DEFAULT_CONFIG: RedlevelsConfig = {
   loadAllIssueStatuses: false,
   closedLookbackDays: 30,
   maxIssuesLimit: 5000,
+  cacheEnabled: false,
 };
 
 /** Preset matching the ids used by the demo dataset. */

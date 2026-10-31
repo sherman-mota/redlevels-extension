@@ -28,6 +28,7 @@ import {
   RedmineTracker,
   RedmineCustomFieldDef,
   RedmineStatus,
+  RedmineProject,
   RedmineUser,
   KanbanColumnKey,
   ThemeId,
@@ -37,15 +38,19 @@ import { THEMES, applyTheme } from '../styles/themes';
 import { RedmineClient, requestHostPermission, normalizeRedmineUrl } from '../services/redmineApi';
 import { normalizeStatusMapping } from '../services/storage';
 import { buildColumns, COLUMN_META } from './KanbanBoard';
+import { LocalCachePanel } from './LocalCachePanel';
+import { UnitScopeCard } from './UnitScopeCard';
 
 interface ConfiguracaoViewProps {
   config: RedlevelsConfig;
   trackers: RedmineTracker[];
   customFields: RedmineCustomFieldDef[];
   statuses: RedmineStatus[];
+  projects: RedmineProject[];
   currentUser?: RedmineUser;
   onSaveConfig: (updated: Partial<RedlevelsConfig>) => Promise<void>;
   onResetDemoData: () => void;
+  cacheError?: string | null;
 }
 
 export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
@@ -53,8 +58,10 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
   trackers,
   customFields,
   statuses,
+  projects,
   onSaveConfig,
   onResetDemoData,
+  cacheError,
 }) => {
   // Local form state
   const [url, setUrl] = useState(config.redmineUrl);
@@ -1160,6 +1167,12 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Unidade: escopo da sincronização por projeto */}
+      <UnitScopeCard config={config} projects={projects} onSaveConfig={onSaveConfig} />
+
+      {/* Cache local das tarefas */}
+      <LocalCachePanel config={config} onSaveConfig={onSaveConfig} cacheError={cacheError} />
 
       {/* Requisito 4 & 5: Custom Fields de Iniciativa Estratégica e Bloqueio */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

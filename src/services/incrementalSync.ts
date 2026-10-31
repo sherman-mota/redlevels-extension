@@ -13,12 +13,42 @@ import { DEFAULT_CLOSED_LOOKBACK_DAYS } from './redmineApi';
 /** Safety margin subtracted from the watermark, to absorb commit/clock skew between requests. */
 export const WATERMARK_SAFETY_MS = 60_000;
 
+/**
+ * Settings that change WHICH issues are downloaded. Anything that differs here invalidates the data
+ * already in memory (and the local cache), so it forces a full reload. Saving other settings
+ * (theme, column order...) must not.
+ */
+export function dataScopeKey(
+  config: Pick<
+    RedlevelsConfig,
+    | 'operationalTrackerIds'
+    | 'tacticalTrackerIds'
+    | 'loadAllIssueStatuses'
+    | 'closedLookbackDays'
+    | 'maxIssuesLimit'
+    | 'unitProjectIds'
+    | 'unitIncludeSubprojects'
+  >
+): string {
+  const sorted = (ids?: number[]) => [...(ids || [])].sort((a, b) => a - b);
+  return JSON.stringify([
+    sorted(config.operationalTrackerIds),
+    sorted(config.tacticalTrackerIds),
+    !!config.loadAllIssueStatuses,
+    config.closedLookbackDays ?? null,
+    config.maxIssuesLimit ?? null,
+    sorted(config.unitProjectIds),
+    config.unitIncludeSubprojects !== false,
+  ]);
+}
+
 /** What the last synchronization did; shown in the header. */
 export interface SyncInfo {
   /** Local time the sync finished (ISO). Display only, never used for queries. */
   at: string;
-  mode: 'full' | 'incremental';
-  /** Full: issues loaded. Incremental: issues returned as changed. */
+  /** `cache`: showing the local snapshot; the sync that follows replaces it. */
+  mode: 'full' | 'incremental' | 'cache';
+  /** Full / cache: issues held. Incremental: issues returned as changed. */
   count: number;
 }
 

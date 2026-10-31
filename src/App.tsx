@@ -45,11 +45,15 @@ import {
 import {
   SyncInfo,
   closedCutoffDate,
+  dataScopeKey,
   maxUpdatedOn,
   mergeIncremental,
   watermarkToSince,
 } from './services/incrementalSync';
 
+import { CACHE_FULL_MAX_AGE_MS, CacheSnapshot, loadSnapshot, saveSnapshot } from './services/issueCache';
+
+import { describeUnit, unitScopeOf } from './services/unitScope';
 import { applyTheme } from './styles/themes';
 import { Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
 
@@ -105,21 +109,24 @@ export default function App() {
   configRef.current = config;
   // Identifies the most recent load; results of superseded loads are discarded.
   const loadSeqRef = useRef(0);
+  // Local cache: when the last FULL load finished (0 = none), and one-shot flags for the boot sequence.
+  const fullAtRef = useRef(0);
+  const bootedRef = useRef(false);
+  const skipStatusIdsRef = useRef(false);
+  const cacheFailedRef = useRef(false);
+  const [cacheError, setCacheError] = useState<string | null>(null);
 
   // Initialize Redmine Client
+  // A new client (hence a new loadData and a full reload) whenever the connection or the unit scope changes.
+  const unitKey = JSON.stringify(unitScopeOf(config));
   const client = useMemo(() => {
-    return new RedmineClient(config.redmineUrl, config.apiKey, config.isDemoMode);
-  }, [config.redmineUrl, config.apiKey, config.isDemoMode]);
+    return new RedmineClient(config.redmineUrl, config.apiKey, config.isDemoMode, unitScopeOf(config));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.redmineUrl, config.apiKey, config.isDemoMode, unitKey]);
 
   // Only settings that change WHICH issues are downloaded force a full reload. Saving anything else
   // (teams, column order, theme...) used to re-create loadData and refetch everything from Redmine.
-  const dataScopeKey = JSON.stringify([
-    config.operationalTrackerIds,
-    config.tacticalTrackerIds,
-    config.loadAllIssueStatuses,
-    config.closedLookbackDays,
-    config.maxIssuesLimit,
-  ]);
+  const scopeKey = dataScopeKey(config);
 
   // Load config on mount
   useEffect(() => {
@@ -159,7 +166,8 @@ export default function App() {
     try {
       const baseline = watermarkRef.current;
       const knownUser = currentUserRef.current;
-      if (mode === 'incremental' && baseline && knownUser && !cfg.isDemoMode) {
+      const fullIsRecent = Date.now() - fullAtRef.current < CACHE_FULL_MAX_AGE_MS;
+      if (mode === 'incremental' && baseline && knownUser && !cfg.isDemoMode && fullIsRecent) {
         try {
           const since = watermarkToSince(baseline);
           const trackerIds = Array.from(
@@ -203,6 +211,7 @@ export default function App() {
 
       // Full load: the old baseline is void until this load completes.
       watermarkRef.current = null;
+      fullAtRef.current = 0;
       setConnectionHealth((prev) => ({ ...prev, status: 'connecting' }));
 
       // 1. Test Connection & get user
@@ -296,6 +305,7 @@ export default function App() {
 
       // Baseline for the next incremental sync. Only trusted if the workspace query itself succeeded.
       watermarkRef.current = issRes.success ? maxUpdatedOn(allIssues) : null;
+      fullAtRef.current = issRes.success ? Date.now() : 0;
       setSyncInfo({ at: new Date().toISOString(), mode: 'full', count: processed.length });
     } catch (e: any) {
       console.error('Erro ao carregar dados do Redmine', e);
@@ -311,25 +321,104 @@ export default function App() {
         setIsLoading(false);
       }
     }
-  // dataScopeKey (not `config`): see the comment where it is defined.
+  // scopeKey (not `config`): see the comment where it is defined.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, dataScopeKey, configLoaded]);
+  }, [client, scopeKey, configLoaded]);
 
-  // Initial check: if not configured, show onboarding
+  // Shows a cached snapshot right away; the incremental sync that follows brings it up to date.
+  const hydrateFromCache = (snap: CacheSnapshot & { user: RedmineUser }) => {
+    const cfg = configRef.current;
+    setIssues(snap.issues.map((i) => processIssueWithConfig(i, cfg)));
+    setInboxIds(snap.inbox || { assigned: [], watched: [] });
+    setProjects(snap.meta.projects || []);
+    setTrackers(snap.meta.trackers || []);
+    setStatuses(snap.meta.statuses || []);
+    setCustomFields(snap.meta.fields || []);
+    if (snap.meta.statusIds && Object.keys(snap.meta.statusIds).length > 0) {
+      setTrackerStatusIds(snap.meta.statusIds);
+      skipStatusIdsRef.current = true; // already known: do not ask Redmine again right after opening
+    }
+    setCurrentUser(snap.user);
+    currentUserRef.current = snap.user;
+    watermarkRef.current = snap.watermark;
+    fullAtRef.current = snap.fullAt;
+    setSyncInfo({ at: new Date(snap.savedAt).toISOString(), mode: 'cache', count: snap.issues.length });
+    setIsLoading(false);
+  };
+
+  // Initial check: if not configured, show onboarding; otherwise open (cache first, if enabled)
   useEffect(() => {
     if (!configLoaded) return;
     if (!config.isConfigured && !config.isDemoMode) {
       setShowOnboarding(true);
       setIsLoading(false);
+    } else if (!bootedRef.current) {
+      bootedRef.current = true;
+      (async () => {
+        const snap = config.isDemoMode || !config.cacheEnabled ? null : await loadSnapshot(config);
+        if (snap && snap.user) {
+          hydrateFromCache({ ...snap, user: snap.user });
+          loadData('incremental');
+        } else {
+          loadData();
+        }
+      })();
     } else {
       loadData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configLoaded, config.isConfigured, config.isDemoMode, loadData]);
+
+  // Persist the snapshot (debounced) after every completed load or local change
+  useEffect(() => {
+    cacheFailedRef.current = false;
+    setCacheError(null);
+  }, [config.cacheEnabled]);
+
+  useEffect(() => {
+    const user = currentUserRef.current;
+    if (!config.cacheEnabled || config.isDemoMode || !user || cacheFailedRef.current) return;
+    // 'cache' means we are still showing what was read from the cache: nothing new to write.
+    if (!syncInfo || syncInfo.mode === 'cache' || !watermarkRef.current || issues.length === 0) return;
+    const timer = setTimeout(async () => {
+      try {
+        await saveSnapshot(configRef.current, {
+          savedAt: new Date(syncInfo.at).getTime(),
+          fullAt: fullAtRef.current || Date.now(),
+          watermark: watermarkRef.current as string,
+          user,
+          issues,
+          inbox: inboxIds,
+          meta: { projects, trackers, statuses, fields: customFields, statusIds: trackerStatusIds },
+        });
+      } catch (e: any) {
+        cacheFailedRef.current = true;
+        setCacheError(e?.message || 'Não foi possível gravar o cache local.');
+        console.warn('Falha ao gravar o cache local', e);
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [
+    issues,
+    inboxIds,
+    projects,
+    trackers,
+    statuses,
+    customFields,
+    trackerStatusIds,
+    syncInfo,
+    config.cacheEnabled,
+    config.isDemoMode,
+  ]);
 
   // Discover each operational tracker's status set (so Kanbans never mix statuses across trackers)
   const operationalTrackerKey = (config.operationalTrackerIds || []).join(',');
   useEffect(() => {
     if (trackers.length === 0) return;
+    if (skipStatusIdsRef.current) {
+      skipStatusIdsRef.current = false;
+      return;
+    }
     const ids = config.operationalTrackerIds?.length
       ? config.operationalTrackerIds
       : trackers.map((t) => t.id);
@@ -735,6 +824,7 @@ export default function App() {
         config={config}
         onRefresh={loadData}
         syncInfo={syncInfo}
+        unitChip={describeUnit(unitScopeOf(config), projects)}
         onOpenTour={() => setShowTour(true)}
         exportableCount={visibleIssues.length}
         onExportCsv={() => downloadCsv(visibleIssues, config, currentTab)}
@@ -889,9 +979,11 @@ export default function App() {
                 trackers={trackers}
                 customFields={customFields}
                 statuses={statuses}
+                projects={projects}
                 currentUser={currentUser}
                 onSaveConfig={handleUpdateConfig}
                 onResetDemoData={handleResetDemoData}
+                cacheError={cacheError}
               />
             )}
           </>

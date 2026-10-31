@@ -26,6 +26,7 @@ export interface RedmineProject {
   name: string;
   identifier: string;
   description?: string;
+  parent?: { id: number; name?: string };
 }
 
 export interface RedmineCustomFieldDef {
@@ -117,6 +118,12 @@ export interface RedlevelsConfig {
   loadAllIssueStatuses?: boolean;
   closedLookbackDays?: number; // 0 ou undefined para padrão, -1 para sem limite de data
   maxIssuesLimit?: number; // Limite máximo de tarefas por tracker / busca (padrão 5000)
+  /** Guarda as tarefas no armazenamento local do navegador para abrir rápido (padrão: desligado). */
+  cacheEnabled?: boolean;
+  /** Projetos (unidades) cujas tarefas são baixadas; vazio/ausente = todos os que o usuário enxerga. */
+  unitProjectIds?: number[];
+  /** Inclui os subprojetos de cada unidade escolhida (padrão: sim). */
+  unitIncludeSubprojects?: boolean;
 }
 
 export interface ConnectionHealth {
