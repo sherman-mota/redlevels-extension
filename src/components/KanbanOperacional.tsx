@@ -15,7 +15,15 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping } from '../types/redmine';
-import { KanbanBoard, buildColumns, summarizeUnmapped, BoardLane, BoardColumn } from './KanbanBoard';
+import {
+  KanbanBoard,
+  FocusProblemsToggle,
+  buildColumns,
+  summarizeUnmapped,
+  useFocusProblems,
+  BoardLane,
+  BoardColumn,
+} from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 
 interface KanbanOperacionalProps {
@@ -60,6 +68,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   const [onlyBlocked, setOnlyBlocked] = useState(false);
   const [filterParentId, setFilterParentId] = useState<string>('');
   const [groupBy, setGroupBy] = useState<'none' | 'project' | 'assignee'>('project');
+  const [focusProblems, setFocusProblems] = useFocusProblems();
   const [collapsedLanes, setCollapsedLanes] = useState<Record<string, boolean>>({});
   const [collapsedTrackers, setCollapsedTrackers] = useState<Record<number, boolean>>({});
   const [columnDensity, setColumnDensity] = useState<'compact' | 'normal' | 'wide'>('normal');
@@ -668,6 +677,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
               </button>
             </div>
 
+            <FocusProblemsToggle active={focusProblems} onChange={setFocusProblems} />
+
             {/* Collapse / Expand All Button */}
             {(groupBy !== 'none' || displayedTrackers.length > 1) && (
               <button
@@ -981,6 +992,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                   emptyColumnLabel="Nenhuma tarefa"
                   renderCard={renderCard}
                   lightView={lightView}
+                  focusProblems={focusProblems}
                 />
               )}
             </div>

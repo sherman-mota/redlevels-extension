@@ -17,7 +17,7 @@ import {
   RedmineCustomFieldDef,
   StatusMapping,
 } from '../types/redmine';
-import { KanbanBoard, buildColumns, BoardLane } from './KanbanBoard';
+import { KanbanBoard, FocusProblemsToggle, buildColumns, useFocusProblems, BoardLane } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 
 interface KanbanTaticoProps {
@@ -63,6 +63,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   const [onlyBlocked, setOnlyBlocked] = useState(false);
   const [selectedCustomFieldFilter, setSelectedCustomFieldFilter] = useState<{ fieldId: number; value: string } | null>(null);
   const [groupByStrategic, setGroupByStrategic] = useState(true);
+  const [focusProblems, setFocusProblems] = useFocusProblems();
   const [collapsedLanes, setCollapsedLanes] = useState<Record<string, boolean>>({});
   const [columnDensity, setColumnDensity] = useState<'compact' | 'normal' | 'wide'>('normal');
 
@@ -371,6 +372,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
               <span className="font-medium">Agrupar por Iniciativa Estratégica</span>
             </label>
 
+            <FocusProblemsToggle active={focusProblems} onChange={setFocusProblems} />
+
             {/* Collapse/Expand All Button when grouped */}
             {lanes.length > 1 && (
               <button
@@ -503,6 +506,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         columns={columns}
         accent="purple"
         density={columnDensity}
+        focusProblems={focusProblems}
         pendingIssueIds={pendingIssueIds}
         collapsedLanes={collapsedLanes}
         onToggleLaneCollapse={handleToggleLaneCollapse}
