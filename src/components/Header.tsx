@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Layers,
   Inbox,
@@ -111,6 +111,21 @@ export const Header: React.FC<HeaderProps> = ({
   levelHealth,
   isRefreshing,
 }) => {
+  const navRef = useRef<HTMLElement>(null);
+
+  // Reserve the scrollbar space so the topbar does not shift between short and long pages.
+  useEffect(() => {
+    document.documentElement.style.scrollbarGutter = 'stable';
+    return () => {
+      document.documentElement.style.scrollbarGutter = '';
+    };
+  }, []);
+
+  // Keep the active tab visible when the tab row scrolls.
+  useEffect(() => {
+    navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
+  }, [currentTab]);
+
   return (
     <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md sticky top-0 z-30 transition-colors">
       <div className={`mx-auto transition-all ${currentTab === 'operacional' || currentTab === 'tatico'
@@ -206,11 +221,11 @@ export const Header: React.FC<HeaderProps> = ({
                 href={config.redmineUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="hidden lg:flex items-center gap-1 p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors"
+                className="hidden lg:flex items-center p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors"
                 title="Abrir Redmine no navegador"
+                aria-label="Abrir Redmine no navegador"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                <span>Redmine Web</span>
               </a>
             )}
 
@@ -277,7 +292,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Row 2: tabs, grouped */}
-        <nav aria-label="Seções" className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none">
+        <nav ref={navRef} aria-label="Seções" className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none">
           {tabGroups(inboxCount, levelHealth, currentTab).map((group, g) => (
             <React.Fragment key={g}>
               {g > 0 && <span aria-hidden="true" className="mx-1.5 h-4 w-px shrink-0 bg-slate-600/60" />}
@@ -286,6 +301,7 @@ export const Header: React.FC<HeaderProps> = ({
                   key={tab.key}
                   type="button"
                   onClick={() => onSelectTab(tab.key)}
+                  aria-current={currentTab === tab.key ? 'page' : undefined}
                   title={tab.title}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === tab.key
                       ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
