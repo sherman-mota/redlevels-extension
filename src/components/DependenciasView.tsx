@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link2 } from 'lucide-react';
 import type { RedlevelsConfig, RedmineIssue } from '../types/redmine';
 import { STALE_DAYS } from '../services/cardHealth';
-import { Dependency, DependencyGraph, buildDependencies, groupKind, groupOf } from '../services/dependencies';
+import { Dependency, DependencyGraph, groupKind, groupOf } from '../services/dependencies';
+import { useDependencies } from './DependencyContext';
 import { stageKeyOf } from '../services/issueStage';
 
 interface DependenciasViewProps {
@@ -27,7 +28,7 @@ const TAG_TONE = {
 
 type Tone = keyof typeof TAG_TONE;
 
-const Tag: React.FC<{ tone: Tone; icon: string; children: React.ReactNode }> = ({ tone, icon, children }) => (
+export const Tag: React.FC<{ tone: Tone; icon: string; children: React.ReactNode }> = ({ tone, icon, children }) => (
   <span
     className={`inline-flex h-5 items-center gap-1 rounded-full border px-1.5 text-[11px] font-bold whitespace-nowrap ${TAG_TONE[tone]}`}
   >
@@ -185,7 +186,7 @@ const Matrix: React.FC<{ graph: DependencyGraph; config: RedlevelsConfig; kind: 
 export const DependenciasView: React.FC<DependenciasViewProps> = ({ issues, config, onSelectIssue, onVisibleIssuesChange }) => {
   const [filter, setFilter] = useState<FilterKey>('todas');
   const [query, setQuery] = useState('');
-  const graph = useMemo(() => buildDependencies(issues, config), [issues, config]);
+  const graph = useDependencies();
   const kind = groupKind(config);
   const kindOther = kind === 'equipe' ? 'outra equipe' : 'outro projeto';
   const k = graph.kpis;
