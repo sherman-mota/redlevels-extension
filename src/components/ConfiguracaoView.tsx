@@ -37,6 +37,8 @@ import {
 import { THEMES, applyTheme } from '../styles/themes';
 import { RedmineClient, requestHostPermission, normalizeRedmineUrl } from '../services/redmineApi';
 import { normalizeStatusMapping } from '../services/storage';
+import { sanitizeTeams } from '../services/teams';
+import { sanitizeWipLimits } from '../services/flowMetrics';
 import { buildColumns, COLUMN_META } from './KanbanBoard';
 import { LocalCachePanel } from './LocalCachePanel';
 import { UnitScopeCard } from './UnitScopeCard';
@@ -329,6 +331,8 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         loadAllIssueStatuses,
         closedLookbackDays,
         maxIssuesLimit,
+        teams: config.teams ?? [],
+        wipLimits: config.wipLimits ?? {},
       },
     };
 
@@ -401,6 +405,9 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         statusMapping: normOp,
         operationalStatusMapping: normOp,
         tacticalStatusMapping: normTac,
+        // Only touch the teams when the file has them, and never trust their shape.
+        ...(imported.teams !== undefined ? { teams: sanitizeTeams(imported.teams) } : {}),
+        ...(imported.wipLimits !== undefined ? { wipLimits: sanitizeWipLimits(imported.wipLimits) } : {}),
       });
 
       setImportNotice({

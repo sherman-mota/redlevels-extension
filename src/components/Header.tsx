@@ -10,14 +10,16 @@ import {
   AlertTriangle,
   Loader2,
   ExternalLink,
-  Download
+  Download,
+  Users,
+  Activity
 } from 'lucide-react';
-import { ConnectionHealth, RedlevelsConfig } from '../types/redmine';
+import { ConnectionHealth, RedlevelsConfig, TabKey } from '../types/redmine';
 import type { SyncInfo } from '../services/incrementalSync';
 
 interface HeaderProps {
-  currentTab: 'inbox' | 'operacional' | 'tatico' | 'estrategico' | 'configuracao';
-  onSelectTab: (tab: 'inbox' | 'operacional' | 'tatico' | 'estrategico' | 'configuracao') => void;
+  currentTab: TabKey;
+  onSelectTab: (tab: TabKey) => void;
   connectionHealth: ConnectionHealth;
   config: RedlevelsConfig;
   onRefresh: (mode: 'full' | 'incremental') => void;
@@ -174,6 +176,28 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <GitBranch className="w-3.5 h-3.5" />
               <span>Estratégico</span>
+            </button>
+
+            <button
+              onClick={() => onSelectTab('equipes')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'equipes'
+                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Equipes</span>
+            </button>
+
+            <button
+              onClick={() => onSelectTab('fluxo')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'fluxo'
+                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span>Fluxo</span>
             </button>
 
             <button

@@ -97,6 +97,31 @@ export interface StatusMapping {
 
 export type ThemeId = 'redmine' | 'redlevels' | 'midnight' | 'light' | 'emerald' | 'amber';
 
+/** Tabs of the app. */
+export type TabKey =
+  | 'inbox'
+  | 'operacional'
+  | 'tatico'
+  | 'estrategico'
+  | 'equipes'
+  | 'fluxo'
+  | 'configuracao';
+
+/** A grouping of people. A person belongs to at most one team. */
+export interface Team {
+  id: string;
+  name: string;
+  members: { id: number; name: string }[];
+}
+
+/** WIP limits (0 or missing = no limit). Per stage and per person (in progress). */
+export interface WipLimits {
+  backlog?: number;
+  analysis?: number;
+  in_progress?: number;
+  perPerson?: number;
+}
+
 export interface RedlevelsConfig {
   redmineUrl: string;
   apiKey: string;
@@ -124,6 +149,10 @@ export interface RedlevelsConfig {
   unitProjectIds?: number[];
   /** Inclui os subprojetos de cada unidade escolhida (padrão: sim). */
   unitIncludeSubprojects?: boolean;
+  /** Equipes (agrupamento de pessoas, usado nas abas Equipes e Fluxo e na coluna "Equipe" do CSV). */
+  teams?: Team[];
+  /** Limites de WIP da aba Fluxo. */
+  wipLimits?: WipLimits;
 }
 
 export interface ConnectionHealth {
