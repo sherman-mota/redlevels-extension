@@ -99,6 +99,7 @@ export type ThemeId = 'redmine' | 'redlevels' | 'midnight' | 'light' | 'emerald'
 
 /** Tabs of the app. */
 export type TabKey =
+  | 'panorama'
   | 'inbox'
   | 'operacional'
   | 'tatico'
