@@ -8,6 +8,8 @@ import { KanbanTatico } from './components/KanbanTatico';
 import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
 import { EquipesView } from './components/EquipesView';
 import { FluxoView } from './components/FluxoView';
+import { PanoramaView } from './components/PanoramaView';
+import { computeLevelHealth } from './services/levelHealth';
 import { InboxView } from './components/InboxView';
 import { ConfiguracaoView } from './components/ConfiguracaoView';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -843,9 +845,7 @@ export default function App() {
     }).length;
   }, [issues, inboxIds, currentUserName, currentUser]);
 
-  const blockedCount = useMemo(() => {
-    return issues.filter((i) => i.is_blocked).length;
-  }, [issues]);
+  const levelsOverview = useMemo(() => computeLevelHealth(issues, config), [issues, config]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans transition-colors duration-200">
@@ -861,7 +861,7 @@ export default function App() {
         exportableCount={visibleIssues.length}
         onExportCsv={() => downloadCsv(visibleIssues, config, currentTab)}
         inboxCount={inboxCount}
-        blockedCount={blockedCount}
+        levelHealth={levelsOverview.levels}
         isRefreshing={isRefreshing}
       />
 
@@ -940,6 +940,14 @@ export default function App() {
           </div>
         ) : (
           <>
+            {currentTab === 'panorama' && (
+              <PanoramaView
+                issues={issues}
+                overview={levelsOverview}
+                onSelectTab={setCurrentTab}
+                onSelectIssue={handleSelectIssue}
+              />
+            )}
             {currentTab === 'inbox' && (
               <InboxView
                 issues={issues}
