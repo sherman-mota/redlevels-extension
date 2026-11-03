@@ -1,5 +1,6 @@
 import type { KanbanColumnKey, RedlevelsConfig, RedmineIssue } from '../types/redmine';
 import { stageKeyOf } from './issueStage';
+import { DependencyGraph, dependencyIds } from './dependencies';
 import { teamNameOf, teamsOf } from './teams';
 
 /**
@@ -38,6 +39,8 @@ export const CSV_HEADER = [
   'Motivo do bloqueio',
   'Iniciativa estratégica',
   'Tarefa pai',
+  'Aguarda (dependências abertas)',
+  'Bloqueia (dependências abertas)',
   'URL',
 ];
 
@@ -63,7 +66,12 @@ export function stageOf(issue: RedmineIssue, config: RedlevelsConfig): string {
 }
 
 /** Builds the CSV text (without BOM). Duplicated ids are written once; rows are sorted by id. */
-export function buildCsv(issues: RedmineIssue[], config: RedlevelsConfig, now: Date = new Date()): string {
+export function buildCsv(
+  issues: RedmineIssue[],
+  config: RedlevelsConfig,
+  now: Date = new Date(),
+  dependencies?: DependencyGraph
+): string {
   const seen = new Set<number>();
   const unique = issues.filter((i) => i && !seen.has(i.id) && seen.add(i.id));
 
@@ -99,6 +107,8 @@ export function buildCsv(issues: RedmineIssue[], config: RedlevelsConfig, now: D
         i.block_reason ?? '',
         i.strategic_initiative ?? '',
         i.parent?.id ?? '',
+        dependencies ? dependencyIds(dependencies, i.id, 'waits') : '',
+        dependencies ? dependencyIds(dependencies, i.id, 'blocks') : '',
         baseUrl ? `${baseUrl}/issues/${i.id}` : '',
       ]
         .map(csvCell)
@@ -115,9 +125,9 @@ export function csvFileName(tab: string, now: Date = new Date()): string {
 }
 
 /** Triggers the browser download of the issues as CSV. Does nothing for an empty list. */
-export function downloadCsv(issues: RedmineIssue[], config: RedlevelsConfig, tab: string): void {
+export function downloadCsv(issues: RedmineIssue[], config: RedlevelsConfig, tab: string, dependencies?: DependencyGraph): void {
   if (issues.length === 0) return;
-  const blob = new Blob(['﻿' + buildCsv(issues, config)], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['﻿' + buildCsv(issues, config, new Date(), dependencies)], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

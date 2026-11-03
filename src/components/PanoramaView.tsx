@@ -1,11 +1,13 @@
 import React from 'react';
 import { LayoutDashboard } from 'lucide-react';
-import type { RedmineIssue, TabKey } from '../types/redmine';
+import type { RedlevelsConfig, RedmineIssue, TabKey } from '../types/redmine';
+import { DependencyStrip } from './DependencyLinks';
 import { LEVEL_LABEL, LEVEL_QUESTION, LevelKey, LevelsOverview, ProblemTag, verdictOf } from '../services/levelHealth';
 
 interface PanoramaViewProps {
   issues: RedmineIssue[];
   overview: LevelsOverview;
+  config: RedlevelsConfig;
   onSelectTab: (tab: TabKey) => void;
   onSelectIssue: (issue: RedmineIssue) => void;
 }
@@ -122,7 +124,7 @@ const LevelCard: React.FC<{
   );
 };
 
-export const PanoramaView: React.FC<PanoramaViewProps> = ({ issues, overview, onSelectTab, onSelectIssue }) => {
+export const PanoramaView: React.FC<PanoramaViewProps> = ({ issues, overview, config, onSelectTab, onSelectIssue }) => {
   const issueRows = (level: 'operacional' | 'tatico'): Row[] =>
     overview.worst[level].slice(0, WORST_SHOWN).map(({ issue, tags }) => ({
       key: issue.id,
@@ -184,6 +186,8 @@ export const PanoramaView: React.FC<PanoramaViewProps> = ({ issues, overview, on
           />
         </div>
       )}
+
+      <DependencyStrip config={config} onSelectTab={onSelectTab} />
     </div>
   );
 };

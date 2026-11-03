@@ -1,5 +1,5 @@
 import { RedlevelsConfig, RedmineIssue, RedmineStatus, StatusMapping } from '../types/redmine';
-import { INITIAL_DEMO_ISSUES } from './demoData';
+import { INITIAL_DEMO_ISSUES, withDemoRelations } from './demoData';
 
 const CONFIG_STORAGE_KEY = 'redlevels_extension_config_v1';
 const DEMO_ISSUES_STORAGE_KEY = 'redlevels_demo_issues_v1';
@@ -134,11 +134,11 @@ export async function saveConfig(config: RedlevelsConfig): Promise<void> {
 export async function loadDemoIssues(): Promise<RedmineIssue[]> {
   try {
     const stored = await getItem<RedmineIssue[]>(DEMO_ISSUES_STORAGE_KEY);
-    if (stored && Array.isArray(stored)) return stored;
+    if (stored && Array.isArray(stored)) return withDemoRelations(stored);
   } catch (e) {
     console.error('Falha ao ler tarefas de demonstração', e);
   }
-  return structuredClone(INITIAL_DEMO_ISSUES);
+  return withDemoRelations(structuredClone(INITIAL_DEMO_ISSUES));
 }
 
 export async function saveDemoIssues(issues: RedmineIssue[]): Promise<void> {
@@ -151,7 +151,7 @@ export async function saveDemoIssues(issues: RedmineIssue[]): Promise<void> {
 
 export async function resetDemoIssues(): Promise<RedmineIssue[]> {
   await removeItem(DEMO_ISSUES_STORAGE_KEY).catch(() => undefined);
-  return structuredClone(INITIAL_DEMO_ISSUES);
+  return withDemoRelations(structuredClone(INITIAL_DEMO_ISSUES));
 }
 
 /**
