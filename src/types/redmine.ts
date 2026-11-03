@@ -116,6 +116,7 @@ export type TabKey =
   | 'estrategico'
   | 'equipes'
   | 'fluxo'
+  | 'dependencias'
   | 'configuracao';
 
 /** A grouping of people. A person belongs to at most one team. */

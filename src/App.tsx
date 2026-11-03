@@ -8,6 +8,7 @@ import { KanbanTatico } from './components/KanbanTatico';
 import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
 import { EquipesView } from './components/EquipesView';
 import { FluxoView } from './components/FluxoView';
+import { DependenciasView } from './components/DependenciasView';
 import { PanoramaView } from './components/PanoramaView';
 import { computeLevelHealth } from './services/levelHealth';
 import { InboxView } from './components/InboxView';
@@ -1027,6 +1028,14 @@ export default function App() {
                 issues={issues}
                 config={config}
                 onSaveWipLimits={(wipLimits) => handleUpdateConfig({ wipLimits })}
+                onSelectIssue={handleSelectIssue}
+                onVisibleIssuesChange={setVisibleIssues}
+              />
+            )}
+            {currentTab === 'dependencias' && (
+              <DependenciasView
+                issues={issues}
+                config={config}
                 onSelectIssue={handleSelectIssue}
                 onVisibleIssuesChange={setVisibleIssues}
               />

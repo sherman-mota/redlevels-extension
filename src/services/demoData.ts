@@ -497,3 +497,27 @@ export const INITIAL_DEMO_ISSUES: RedmineIssue[] = [
     ]
   }
 ];
+
+/** [blocker, waiting, type]: a few relations so the Dependências tab has something to show. 999 is outside the demo data. */
+const DEMO_RELATIONS: [number, number, string][] = [
+  [309, 303, 'blocks'],
+  [307, 301, 'blocks'],
+  [302, 311, 'blocks'],
+  [304, 305, 'precedes'],
+  [999, 304, 'blocks'],
+  [205, 202, 'precedes'],
+  [204, 201, 'relates'],
+];
+
+/** Adds the demo relations to issues saved before they existed (a list that already has relations is kept). */
+export function withDemoRelations(issues: RedmineIssue[]): RedmineIssue[] {
+  if (issues.some((i) => i.relations?.length)) return issues;
+  DEMO_RELATIONS.forEach(([from, to, type], n) => {
+    const relation = { id: 9000 + n, issue_id: from, issue_to_id: to, relation_type: type };
+    [from, to].forEach((id) => {
+      const issue = issues.find((i) => i.id === id);
+      if (issue) issue.relations = [...(issue.relations ?? []), relation];
+    });
+  });
+  return issues;
+}

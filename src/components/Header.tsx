@@ -13,7 +13,8 @@ import {
   Download,
   Users,
   Activity,
-  LayoutDashboard
+  LayoutDashboard,
+  Link2
 } from 'lucide-react';
 import { ConnectionHealth, RedlevelsConfig, TabKey } from '../types/redmine';
 import type { SyncInfo } from '../services/incrementalSync';
@@ -229,6 +230,17 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Activity className="w-3.5 h-3.5" />
               <span>Fluxo</span>
+            </button>
+
+            <button
+              onClick={() => onSelectTab('dependencias')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'dependencias'
+                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`}
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              <span>Dependências</span>
             </button>
 
             <button
