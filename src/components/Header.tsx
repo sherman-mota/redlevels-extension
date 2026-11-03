@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Link2
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { ConnectionHealth, RedlevelsConfig, TabKey } from '../types/redmine';
 import type { SyncInfo } from '../services/incrementalSync';
 import { LevelHealth, LevelKey, verdictOf } from '../services/levelHealth';
@@ -59,6 +60,42 @@ const LevelBadge: React.FC<{ level: LevelKey; health: LevelHealth; active: boole
   );
 };
 
+type TabDef = { key: TabKey; label: string; icon: LucideIcon; extra?: React.ReactNode; title?: string };
+
+/** Tabs by group; a divider separates the groups. */
+function tabGroups(inboxCount: number, levelHealth: Record<LevelKey, LevelHealth>, currentTab: TabKey): TabDef[][] {
+  const levelBadge = (level: LevelKey) => <LevelBadge level={level} health={levelHealth[level]} active={currentTab === level} />;
+  return [
+    [{ key: 'panorama', label: 'Panorama', icon: LayoutDashboard }],
+    [
+      {
+        key: 'inbox',
+        label: 'Inbox',
+        icon: Inbox,
+        extra:
+          inboxCount > 0 ? (
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${currentTab === 'inbox' ? 'bg-white/20 text-white' : 'bg-rose-500/30 text-rose-300'}`}
+            >
+              {inboxCount}
+            </span>
+          ) : null,
+      },
+    ],
+    [
+      { key: 'operacional', label: 'Operacional', icon: Kanban, extra: levelBadge('operacional') },
+      { key: 'tatico', label: 'Tático', icon: Layers, extra: levelBadge('tatico') },
+      { key: 'estrategico', label: 'Estratégico', icon: GitBranch, extra: levelBadge('estrategico') },
+    ],
+    [
+      { key: 'equipes', label: 'Equipes', icon: Users },
+      { key: 'fluxo', label: 'Fluxo', icon: Activity },
+      { key: 'dependencias', label: 'Dependências', icon: Link2 },
+    ],
+    [{ key: 'configuracao', label: 'Configuração', icon: Settings, title: 'Configurações e Mapeamentos' }],
+  ];
+}
+
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   onSelectTab,
@@ -80,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
           ? 'w-full px-4 sm:px-6 lg:px-8'
           : 'max-w-7xl px-4 sm:px-6'
         }`}>
-        <div className="flex items-center justify-between h-16 gap-3">
+        <div className="flex items-center justify-between h-14 gap-3">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => onSelectTab('operacional')}>
@@ -143,118 +180,6 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
           </div>
-
-          {/* Navigation Tabs */}
-          <nav className="flex items-center gap-1 overflow-x-auto py-1 scrollbar-none">
-            <button
-              onClick={() => onSelectTab('panorama')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'panorama'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>Panorama</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('inbox')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'inbox'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-            >
-              <Inbox className="w-3.5 h-3.5" />
-              <span>Inbox</span>
-              {inboxCount > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${currentTab === 'inbox' ? 'bg-white/20 text-white' : 'bg-rose-500/30 text-rose-300'
-                  }`}>
-                  {inboxCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => onSelectTab('operacional')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'operacional'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-            >
-              <Kanban className="w-3.5 h-3.5" />
-              <span>Operacional</span>
-              <LevelBadge level="operacional" health={levelHealth.operacional} active={currentTab === 'operacional'} />
-            </button>
-
-            <button
-              onClick={() => onSelectTab('tatico')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'tatico'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Tático</span>
-              <LevelBadge level="tatico" health={levelHealth.tatico} active={currentTab === 'tatico'} />
-            </button>
-
-            <button
-              onClick={() => onSelectTab('estrategico')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'estrategico'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-            >
-              <GitBranch className="w-3.5 h-3.5" />
-              <span>Estratégico</span>
-              <LevelBadge level="estrategico" health={levelHealth.estrategico} active={currentTab === 'estrategico'} />
-            </button>
-
-            <button
-              onClick={() => onSelectTab('equipes')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'equipes'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Equipes</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('fluxo')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'fluxo'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-            >
-              <Activity className="w-3.5 h-3.5" />
-              <span>Fluxo</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('dependencias')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'dependencias'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-            >
-              <Link2 className="w-3.5 h-3.5" />
-              <span>Dependências</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('configuracao')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === 'configuracao'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-              title="Configurações e Mapeamentos"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Configuração</span>
-            </button>
-          </nav>
 
           {/* Action Tools */}
           <div className="flex items-center gap-1 sm:gap-2">
@@ -350,6 +275,31 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Row 2: tabs, grouped */}
+        <nav aria-label="Seções" className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none">
+          {tabGroups(inboxCount, levelHealth, currentTab).map((group, g) => (
+            <React.Fragment key={g}>
+              {g > 0 && <span aria-hidden="true" className="mx-1.5 h-4 w-px shrink-0 bg-slate-600/60" />}
+              {group.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => onSelectTab(tab.key)}
+                  title={tab.title}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${currentTab === tab.key
+                      ? 'bg-rose-600 text-white shadow-sm shadow-rose-900/30'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                    }`}
+                >
+                  <tab.icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                  {tab.extra}
+                </button>
+              ))}
+            </React.Fragment>
+          ))}
+        </nav>
       </div>
     </header>
   );
