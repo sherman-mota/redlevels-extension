@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, ChevronLeft, Focus, Loader2 } from 'lucide-r
 import { KanbanColumnKey, RedmineIssue, RedmineStatus, StatusMapping } from '../types/redmine';
 import { normalizeStatusMapping } from '../services/storage';
 import { CardMetaLine } from './CardMetaLine';
+import { DependencyPills } from './DependencyLinks';
 import { cardHealth } from '../services/cardHealth';
 
 export const COLUMN_META: Record<KanbanColumnKey, { label: string; dot: string; chip: string }> = {
@@ -525,6 +526,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                 {renderCard(issue)}
                                 {/* Age, stale days and due date of unfinished issues (all Kanban boards) */}
                                 {!isDone && <CardMetaLine issue={issue} compact={lightView} />}
+                                {!isDone && <DependencyPills issue={issue} compact={lightView} />}
                               </div>
                             );
                           })

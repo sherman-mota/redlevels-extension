@@ -8,6 +8,9 @@ import { KanbanTatico } from './components/KanbanTatico';
 import { IniciativasEstrategicas } from './components/IniciativasEstrategicas';
 import { EquipesView } from './components/EquipesView';
 import { FluxoView } from './components/FluxoView';
+import { DependenciasView } from './components/DependenciasView';
+import { DependencyProvider } from './components/DependencyContext';
+import { buildDependencies } from './services/dependencies';
 import { PanoramaView } from './components/PanoramaView';
 import { computeLevelHealth } from './services/levelHealth';
 import { InboxView } from './components/InboxView';
@@ -846,8 +849,10 @@ export default function App() {
   }, [issues, inboxIds, currentUserName, currentUser]);
 
   const levelsOverview = useMemo(() => computeLevelHealth(issues, config), [issues, config]);
+  const dependencyGraph = useMemo(() => buildDependencies(issues, config), [issues, config]);
 
   return (
+    <DependencyProvider value={dependencyGraph}>
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans transition-colors duration-200">
       <Header
         currentTab={currentTab}
@@ -859,7 +864,7 @@ export default function App() {
         unitChip={describeUnit(unitScopeOf(config), projects)}
         onOpenTour={() => setShowTour(true)}
         exportableCount={visibleIssues.length}
-        onExportCsv={() => downloadCsv(visibleIssues, config, currentTab)}
+        onExportCsv={() => downloadCsv(visibleIssues, config, currentTab, dependencyGraph)}
         inboxCount={inboxCount}
         levelHealth={levelsOverview.levels}
         isRefreshing={isRefreshing}
@@ -944,6 +949,7 @@ export default function App() {
               <PanoramaView
                 issues={issues}
                 overview={levelsOverview}
+                config={config}
                 onSelectTab={setCurrentTab}
                 onSelectIssue={handleSelectIssue}
               />
@@ -1031,6 +1037,14 @@ export default function App() {
                 onVisibleIssuesChange={setVisibleIssues}
               />
             )}
+            {currentTab === 'dependencias' && (
+              <DependenciasView
+                issues={issues}
+                config={config}
+                onSelectIssue={handleSelectIssue}
+                onVisibleIssuesChange={setVisibleIssues}
+              />
+            )}
             {currentTab === 'configuracao' && (
               <ConfiguracaoView
                 config={config}
@@ -1087,5 +1101,6 @@ export default function App() {
 
       <ToastHost toasts={toasts} onDismiss={dismissToast} />
     </div>
+    </DependencyProvider>
   );
 }

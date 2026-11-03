@@ -18,6 +18,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { RedmineIssue, RedmineStatus } from '../types/redmine';
+import { DependencySection } from './DependencyLinks';
 
 interface IssueDetailModalProps {
   issue: RedmineIssue | null;
@@ -301,6 +302,8 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                   {issue.description || <span className="text-slate-500 italic">Nenhuma descrição informada.</span>}
                 </div>
               </div>
+
+              <DependencySection issue={issue} onOpenIssue={onSelectIssueById} />
 
               {/* Subtasks / Children list */}
               {Array.isArray(issue.children) && issue.children.length > 0 && (
