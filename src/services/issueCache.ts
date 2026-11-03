@@ -18,13 +18,14 @@ import { dataScopeKey } from './incrementalSync';
  * (incremental sync), instead of repeating the full load.
  *
  * Privacy: the API key is NEVER stored; only a hash of it takes part in the scope signature, so the
- * cache is discarded when the key changes. Description, journals, watchers, relations and
- * allowed_statuses are not stored either (the detail modal fetches them on demand).
+ * cache is discarded when the key changes. Description, journals, watchers and allowed_statuses are
+ * not stored either (the detail modal fetches them on demand); relations are kept in compact form.
  */
 
 const CACHE_KEY = 'redlevels_cache_v1';
 const STATS_KEY = 'redlevels_cache_stats_v1';
-const CACHE_VERSION = 1;
+/** Bumped to 2 when issues started to carry their (compact) relations: older snapshots lack them. */
+const CACHE_VERSION = 2;
 
 /** A snapshot older than this (since the last FULL load) is ignored, to drop deleted/moved issues. */
 export const CACHE_FULL_MAX_AGE_MS = 24 * 3600 * 1000;
@@ -77,10 +78,16 @@ export function scopeSignature(
 
 const ON_DEMAND_FIELDS = ['description', 'journals', 'watchers', 'relations', 'allowed_statuses'];
 
+/** Only what the dependency views need from a relation. */
+function slimRelations(relations: RedmineIssue['relations']): RedmineIssue['relations'] {
+  return relations?.map(({ id, issue_id, issue_to_id, relation_type }) => ({ id, issue_id, issue_to_id, relation_type }));
+}
+
 /** Issue without the heavy / on-demand fields. */
 export function slimIssue(issue: RedmineIssue): RedmineIssue {
   const slim: Record<string, unknown> = { ...issue };
   for (const key of ON_DEMAND_FIELDS) delete slim[key];
+  if (issue.relations?.length) slim.relations = slimRelations(issue.relations);
   return slim as unknown as RedmineIssue;
 }
 

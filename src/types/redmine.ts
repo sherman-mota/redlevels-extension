@@ -53,6 +53,15 @@ export interface RedmineJournal {
   details?: { property: string; name: string; old_value?: string | null; new_value?: string | null }[];
 }
 
+/** Relation between two issues, as Redmine sends it with `include=relations`. */
+export interface RedmineRelation {
+  id: number;
+  issue_id: number;
+  issue_to_id: number;
+  relation_type: string;
+  delay?: number | null;
+}
+
 export interface RedmineIssue {
   id: number;
   project: { id: number; name: string };
@@ -77,6 +86,7 @@ export interface RedmineIssue {
   children?: { id: number; tracker?: { id: number; name: string }; subject?: string }[];
   journals?: RedmineJournal[];
   watchers?: { id: number; name: string }[];
+  relations?: RedmineRelation[];
   allowed_statuses?: { id: number; name: string; is_closed?: boolean }[];
   // Helper calculated fields
   is_blocked?: boolean;

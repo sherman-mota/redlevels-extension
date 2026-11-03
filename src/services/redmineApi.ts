@@ -241,6 +241,7 @@ export class RedmineClient {
     while (offset < total && items.length < max) {
       const qs = new URLSearchParams({
         ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+        ...(endpoint === '/issues.json' ? { include: 'relations' } : {}),
         limit: String(PAGE_SIZE),
         offset: String(offset),
       });
@@ -289,6 +290,7 @@ export class RedmineClient {
     while (offset < total && items.length < max) {
       const qs = new URLSearchParams({
         ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+        ...(endpoint === '/issues.json' ? { include: 'relations' } : {}),
         limit: String(PAGE_SIZE),
         offset: String(offset),
       });
