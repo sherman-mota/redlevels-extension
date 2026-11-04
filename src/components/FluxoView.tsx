@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity } from 'lucide-react';
 import type { RedlevelsConfig, RedmineIssue, WipLimits } from '../types/redmine';
-import { FlowLevel, LimitState, computeFlow, limitState } from '../services/flowMetrics';
+import { FlowLevel, LimitState, computeFlow, limitState, previousPeriod } from '../services/flowMetrics';
 import { teamsOf } from '../services/teams';
 
 interface FluxoViewProps {
@@ -94,6 +94,10 @@ export const FluxoView: React.FC<FluxoViewProps> = ({
     () => computeFlow(issues, config, { level, teamId, weeks: weeksBack }),
     [issues, config, level, teamId, weeksBack]
   );
+  const prev = useMemo(
+    () => previousPeriod(issues, config, { level, teamId, weeks: weeksBack }),
+    [issues, config, level, teamId, weeksBack]
+  );
 
   const shown = useMemo(() => [...m.open, ...m.finished], [m]);
   useEffect(() => {
@@ -109,7 +113,26 @@ export const FluxoView: React.FC<FluxoViewProps> = ({
   const wip = limitState(m.inProgress.length, limits.in_progress);
   const perPersonLimit = limits.perPerson ?? 0;
 
-  const tile = (label: string, value: string, sub: string, state?: LimitState) => (
+  /** "vs. N weeks before": better = ✓, worse = ▲, same = –. Only when the loaded data covers the previous period. */
+  const delta = (current: number | null, before: number | null, lowerIsBetter: boolean, fmt: (n: number) => string) => {
+    if (!prev.covered) return <span title="O histórico carregado não chega ao período anterior (Configuração › dias de histórico).">– sem período anterior carregado</span>;
+    if (current === null || before === null) return null;
+    const d = current - before;
+    if (Math.abs(d) < 0.05) return <span>– igual ao período anterior</span>;
+    const good = lowerIsBetter ? d < 0 : d > 0;
+    return (
+      <span>
+        <span className={good ? 'text-emerald-400' : 'text-rose-400'}>
+          <span aria-hidden="true">{good ? '✓' : '▲'}</span> {d > 0 ? '+' : '−'}
+          {fmt(Math.abs(d))}
+        </span>{' '}
+        vs. {weeksBack} sem. anteriores
+      </span>
+    );
+  };
+  const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',');
+
+  const tile = (label: string, value: string, sub: string, state?: LimitState, extra?: React.ReactNode) => (
     <div key={label} className={`${CARD} !p-3`}>
       <div className="text-[11px] text-slate-500">{label}</div>
       <div className="mt-0.5 text-2xl font-bold leading-tight text-slate-50">{value}</div>
@@ -122,6 +145,7 @@ export const FluxoView: React.FC<FluxoViewProps> = ({
           {LIMIT_VIEW[state].text}
         </div>
       )}
+      {extra && <div className="mt-1 text-[11px] text-slate-400">{extra}</div>}
     </div>
   );
 
@@ -179,13 +203,17 @@ export const FluxoView: React.FC<FluxoViewProps> = ({
         {tile('Em andamento', String(m.inProgress.length), 'itens no recorte', wip)}
         {tile(
           'Vazão média',
-          m.throughputAvg === null ? '—' : String(Math.round(m.throughputAvg * 10) / 10).replace('.', ','),
-          'concluídas por semana (semanas completas)'
+          m.throughputAvg === null ? '—' : num(m.throughputAvg),
+          'concluídas por semana (semanas completas)',
+          undefined,
+          delta(m.throughputAvg, prev.throughputAvg, false, num)
         )}
         {tile(
           'Lead time (mediana)',
           days(m.leadP50),
-          m.leadP85 === null ? 'sem concluídas no período' : `85% concluem em até ${days(m.leadP85)}`
+          m.leadP85 === null ? 'sem concluídas no período' : `85% concluem em até ${days(m.leadP85)}`,
+          undefined,
+          delta(m.leadP50, prev.leadP50, true, (n) => days(n))
         )}
         {tile('Idade em andamento', days(m.inProgressMedianAge), 'mediana desde a criação')}
         {tile('Bloqueadas', String(m.blocked), 'entre as abertas')}
