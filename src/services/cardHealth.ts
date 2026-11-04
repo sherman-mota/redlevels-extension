@@ -55,13 +55,22 @@ export function cardMeta(issue: RedmineIssue, now: number = Date.now()): CardMet
   return { ageDays, staleDays, due };
 }
 
-/** problema: blocked or overdue. atencao: stale or due within 2 days. done: finished. ok: the rest. */
+/** problema: blocked, overdue or waiting for a problem blocker. atencao: stale, due within 2 days or waiting for someone. done: finished. ok: the rest. */
 export type CardHealth = 'problema' | 'atencao' | 'ok' | 'done';
 
-export function cardHealth(issue: RedmineIssue, isDone: boolean, now: number = Date.now()): CardHealth {
+/**
+ * `dependencyRisk` (see `dependencyRisk` in dependencies.ts): 2 = waits for a blocker that is stalled,
+ * overdue or unassigned (counts as a problem); 1 = waits for someone (counts as attention).
+ */
+export function cardHealth(
+  issue: RedmineIssue,
+  isDone: boolean,
+  now: number = Date.now(),
+  dependencyRisk: 0 | 1 | 2 = 0
+): CardHealth {
   if (isDone) return 'done';
   const { staleDays, due } = cardMeta(issue, now);
-  if (issue.is_blocked || due?.kind === 'overdue') return 'problema';
-  if (staleDays !== null || due?.kind === 'today' || due?.kind === 'soon') return 'atencao';
+  if (issue.is_blocked || due?.kind === 'overdue' || dependencyRisk === 2) return 'problema';
+  if (staleDays !== null || due?.kind === 'today' || due?.kind === 'soon' || dependencyRisk === 1) return 'atencao';
   return 'ok';
 }
