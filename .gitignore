@@ -7,3 +7,6 @@ docs/.json
 *.log
 .env*
 !.env.example
+
+# Exported Redlevels settings (they contain the Redmine URL and the API key)
+redlevels-config-*.json
