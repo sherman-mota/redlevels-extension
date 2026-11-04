@@ -51,6 +51,34 @@ export function sumStats(rows: PersonRow[]): PersonStats {
 }
 
 /** One row per assignee found in `issues`, plus every member of a team (even with no issues). */
+export type HeatLevel = 'zero' | 'neutral' | 'danger' | 'warn' | 'ok';
+
+export interface HeatCell {
+  level: HeatLevel;
+  /** Always shown with the number, so the state never depends on color alone. */
+  icon: '' | '▲' | '●' | '✓';
+  title: string;
+}
+
+/**
+ * Heat map of the people table. "Andamento" is compared with the WIP limit per person (Fluxo tab);
+ * "Bloq." and "Atras." stand out at any value above zero; zero is dimmed. Total rows (`isTotal`)
+ * do not compare with the individual limit.
+ */
+export function heatCell(key: keyof PersonStats, value: number, perPersonLimit: number | undefined, isTotal: boolean): HeatCell {
+  if (value === 0) return { level: 'zero', icon: '', title: '' };
+  if (key === 'blocked') return { level: 'danger', icon: '▲', title: 'Abertas com impedimento' };
+  if (key === 'overdue') return { level: 'danger', icon: '▲', title: 'Abertas com prazo vencido' };
+  if (key === 'in_progress' && perPersonLimit && perPersonLimit > 0 && !isTotal) {
+    const state = value > perPersonLimit ? 'acima do limite' : value === perPersonLimit ? 'no limite' : 'dentro do limite';
+    const title = `${value} em andamento · limite por pessoa: ${perPersonLimit} (${state})`;
+    if (value > perPersonLimit) return { level: 'danger', icon: '▲', title };
+    if (value === perPersonLimit) return { level: 'warn', icon: '●', title };
+    return { level: 'ok', icon: '✓', title };
+  }
+  return { level: 'neutral', icon: '', title: '' };
+}
+
 export function buildPeople(
   issues: RedmineIssue[],
   config: RedlevelsConfig,
