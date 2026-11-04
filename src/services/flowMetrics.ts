@@ -91,8 +91,8 @@ const LEAD_BUCKETS: [string, number, number][] = [
   ['Mais de 30 dias', 30, Infinity],
 ];
 
-export function computeFlow(issues: RedmineIssue[], config: RedlevelsConfig, options: FlowOptions): FlowMetrics {
-  const now = options.now ?? Date.now();
+/** Issues of the chosen level and team, each with its stage. */
+function scopeIssues(issues: RedmineIssue[], config: RedlevelsConfig, options: FlowOptions) {
   const tactical = config.tacticalTrackerIds || [];
   const operational = config.operationalTrackerIds || [];
   const inLevel = (issue: RedmineIssue) => {
@@ -104,9 +104,14 @@ export function computeFlow(issues: RedmineIssue[], config: RedlevelsConfig, opt
 
   const team = teamsOf(config).find((t) => t.id === options.teamId);
   const memberIds = team ? new Set(team.members.map((m) => m.id)) : null;
-  const scoped = issues
+  return issues
     .filter((i) => inLevel(i) && (!memberIds || (i.assigned_to && memberIds.has(i.assigned_to.id))))
     .map((issue) => ({ issue, stage: stageKeyOf(issue, config) }));
+}
+
+export function computeFlow(issues: RedmineIssue[], config: RedlevelsConfig, options: FlowOptions): FlowMetrics {
+  const now = options.now ?? Date.now();
+  const scoped = scopeIssues(issues, config, options);
 
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -187,6 +192,50 @@ export function computeFlow(issues: RedmineIssue[], config: RedlevelsConfig, opt
     inProgressMedianAge: percentile(inProgress.map(ageOf).sort((a, b) => a - b), 50),
     blocked: open.filter((r) => r.issue.is_blocked).length,
     overdue: open.filter((r) => isOverdue(r.issue, config, today)).length,
+  };
+}
+
+export interface PreviousPeriod {
+  /** False when the loaded data does not reach back to the start of the previous period. */
+  covered: boolean;
+  /** Finished per week and lead time of the N weeks right before the current window. */
+  throughputAvg: number | null;
+  leadP50: number | null;
+  leadP85: number | null;
+  finished: number;
+}
+
+/**
+ * The N weeks right before the current window, for "vs. previous period". Only comparable when the
+ * loaded history reaches back that far (all statuses, no date limit, or a lookback long enough).
+ */
+export function previousPeriod(issues: RedmineIssue[], config: RedlevelsConfig, options: FlowOptions): PreviousPeriod {
+  const now = options.now ?? Date.now();
+  const currentStart = weekStart(now);
+  currentStart.setDate(currentStart.getDate() - 7 * (options.weeks - 1));
+  const previousStart = new Date(currentStart);
+  previousStart.setDate(previousStart.getDate() - 7 * options.weeks);
+
+  // closedLookbackDays: -1 = no limit; 0 or missing = the default of 30 days.
+  const lookback = config.closedLookbackDays;
+  const days = lookback === -1 ? Infinity : lookback && lookback > 0 ? lookback : 30;
+  const covered = !!config.loadAllIssueStatuses || (now - previousStart.getTime()) / DAY_MS <= days;
+  if (!covered) return { covered, throughputAvg: null, leadP50: null, leadP85: null, finished: 0 };
+
+  const finished = scopeIssues(issues, config, options)
+    .filter((r) => r.stage === 'done')
+    .map((r) => ({ end: new Date(r.issue.closed_on || r.issue.updated_on).getTime(), created: new Date(r.issue.created_on).getTime() }))
+    .filter((r) => r.end >= previousStart.getTime() && r.end < currentStart.getTime());
+  const leadTimes = finished
+    .map((r) => (r.end - r.created) / DAY_MS)
+    .filter((d) => d >= 0)
+    .sort((a, b) => a - b);
+  return {
+    covered,
+    throughputAvg: finished.length / options.weeks,
+    leadP50: percentile(leadTimes, 50),
+    leadP85: percentile(leadTimes, 85),
+    finished: finished.length,
   };
 }
 

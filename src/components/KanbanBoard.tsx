@@ -6,6 +6,8 @@ import { CardMetaLine } from './CardMetaLine';
 import { DependencyPills } from './DependencyLinks';
 import { cardHealth } from '../services/cardHealth';
 import { limitState } from '../services/flowMetrics';
+import { dependencyRisk } from '../services/dependencies';
+import { useDependencies } from './DependencyContext';
 
 export const COLUMN_META: Record<KanbanColumnKey, { label: string; dot: string; chip: string }> = {
   backlog: { label: 'Backlog', dot: 'bg-slate-400', chip: 'bg-slate-800 text-slate-300 border-slate-700' },
@@ -188,6 +190,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   wipLimits,
   stageCounts,
 }) => {
+  const dependencies = useDependencies();
   const [dragged, setDragged] = useState<{ id: number; statusId: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [internalCollapsedLanes, setInternalCollapsedLanes] = useState<Record<string, boolean>>({});
@@ -516,7 +519,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           visible.map((issue) => {
                             const pending = pendingIssueIds.has(issue.id);
                             const isDragging = dragged?.id === issue.id;
-                            const health = cardHealth(issue, isDone);
+                            const health = cardHealth(issue, isDone, undefined, dependencyRisk(dependencies, issue.id));
                             return (
                               <div
                                 key={issue.id}

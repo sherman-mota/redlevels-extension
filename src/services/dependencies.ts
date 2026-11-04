@@ -185,6 +185,17 @@ export function buildDependencies(issues: RedmineIssue[], config: RedlevelsConfi
   };
 }
 
+/**
+ * How worrying the dependencies of an issue are: 0 = it waits for nobody, 1 = it waits for someone,
+ * 2 = it waits for a blocker that is stalled, overdue or has no assignee (blockers outside the loaded
+ * data are unknown, so they only count as 1).
+ */
+export function dependencyRisk(graph: DependencyGraph, issueId: number): 0 | 1 | 2 {
+  const waits = graph.waitingOn.get(issueId);
+  if (!waits || waits.length === 0) return 0;
+  return waits.some((e) => e.blocker && (e.stalledDays >= STALE_DAYS || e.overdueDays > 0 || e.blockerUnassigned)) ? 2 : 1;
+}
+
 /** "#12 #40": the active blockers the issue waits for, or the issues that wait for it. For the CSV. */
 export function dependencyIds(graph: DependencyGraph, issueId: number, side: 'waits' | 'blocks'): string {
   const entry = graph.byIssue.get(issueId);

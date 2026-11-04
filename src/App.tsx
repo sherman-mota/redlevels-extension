@@ -12,6 +12,7 @@ import { DependenciasView } from './components/DependenciasView';
 import { DependencyProvider } from './components/DependencyContext';
 import type { AttentionKey } from './services/attentionFilters';
 import { ConfirmHost, askConfirm } from './components/ConfirmHost';
+import { InitiativeDiagnostic } from './components/InitiativeDiagnostic';
 import { EditLockButton } from './components/EditLockButton';
 import { authorizeWrite, hostOf, isUnlocked, renewUnlock, statusChangeLines, userLabel } from './services/writeGuard';
 import { buildDependencies } from './services/dependencies';
@@ -1052,6 +1053,15 @@ export default function App() {
                 attentionRequest={attentionRequest?.tab === 'operacional' ? attentionRequest : null}
                 onAttentionRequestHandled={() => setAttentionRequest(null)}
               />
+            )}
+            {(currentTab === 'tatico' || currentTab === 'estrategico') && (
+              <div className="mb-4">
+                <InitiativeDiagnostic
+                  issues={issues}
+                  config={config}
+                  onUseField={(fieldId) => handleUpdateConfig({ strategicCustomFieldId: fieldId })}
+                />
+              </div>
             )}
             {currentTab === 'tatico' && (
               <KanbanTatico

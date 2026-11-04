@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Users } from 'lucide-react';
 import type { RedlevelsConfig, RedmineIssue, Team } from '../types/redmine';
 import { stageKeyOf } from '../services/issueStage';
-import { NO_OWNER, PersonRow, PersonStats, buildPeople, sumStats } from '../services/teamStats';
+import { HeatLevel, NO_OWNER, PersonRow, PersonStats, buildPeople, heatCell, sumStats } from '../services/teamStats';
 import { NO_TEAM_LABEL, movePerson, newTeamId, teamIdByPerson, teamsOf } from '../services/teams';
 
 interface EquipesViewProps {
@@ -23,6 +23,14 @@ const COLUMNS: { key: keyof PersonStats; label: string; title: string }[] = [
   { key: 'overdue', label: 'Atras.', title: 'Abertas com prazo vencido' },
   { key: 'done', label: 'Concl.', title: 'Concluídas dentro da janela carregada (Configuração › dias de histórico)' },
 ];
+
+const HEAT_TONE: Record<HeatLevel, string> = {
+  zero: 'bg-slate-900/60 text-slate-600 font-medium',
+  neutral: 'bg-slate-800/70 text-slate-200',
+  danger: 'bg-rose-950/60 text-rose-300 ring-1 ring-inset ring-rose-800/70',
+  warn: 'bg-amber-950/50 text-amber-300 ring-1 ring-inset ring-amber-800/60',
+  ok: 'bg-emerald-950/40 text-emerald-300 ring-1 ring-inset ring-emerald-800/60',
+};
 
 const GRID = 'grid grid-cols-[minmax(170px,1.6fr)_150px_repeat(7,66px)] items-center gap-2 px-3.5 py-1.5 text-xs min-w-[760px]';
 const COLLAPSED_KEY = 'redlevels_ui_equipes_col';
@@ -144,20 +152,21 @@ export const EquipesView: React.FC<EquipesViewProps> = ({
     );
   };
 
-  const cell = (key: keyof PersonStats, value: number) => {
-    const tone =
-      value === 0
-        ? 'text-slate-600'
-        : key === 'blocked'
-          ? 'text-rose-300'
-          : key === 'overdue'
-            ? 'text-amber-300'
-            : key === 'open'
-              ? 'text-slate-100 font-bold'
-              : 'text-slate-300';
+  const perPersonLimit = config.wipLimits?.perPerson;
+  const cell = (key: keyof PersonStats, value: number, isTotal = false) => {
+    const heat = heatCell(key, value, perPersonLimit, isTotal);
+    const tone = HEAT_TONE[heat.level];
     return (
-      <div key={key} className={`text-center tabular-nums ${tone}`}>
-        {(key === 'blocked' || key === 'overdue') && value > 0 && <span aria-hidden="true">▲ </span>}
+      <div
+        key={key}
+        title={heat.title || undefined}
+        className={`flex min-h-[28px] items-center justify-center gap-1 rounded-md text-center font-mono tabular-nums ${tone} ${key === 'open' && value > 0 ? 'font-extrabold' : 'font-bold'}`}
+      >
+        {heat.icon && (
+          <span aria-hidden="true" className="text-[9px] font-normal">
+            {heat.icon}
+          </span>
+        )}
         {value}
       </div>
     );
@@ -265,7 +274,7 @@ export const EquipesView: React.FC<EquipesViewProps> = ({
               <div className={`${GRID} bg-slate-950/70 font-bold text-slate-50`}>
                 <div>Total</div>
                 <div />
-                {COLUMNS.map((c) => cell(c.key, total[c.key]))}
+                {COLUMNS.map((c) => cell(c.key, total[c.key], true))}
               </div>
             )}
           </div>
@@ -322,6 +331,28 @@ export const EquipesView: React.FC<EquipesViewProps> = ({
             {allCollapsed ? 'Expandir todas' : 'Recolher todas'}
           </button>
         </div>
+      </div>
+
+      <div className="-mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[11px] text-slate-400">
+        <span>Andamento vs. limite por pessoa:</span>
+        {(
+          [
+            ['danger', '▲', 'acima'],
+            ['warn', '●', 'no limite'],
+            ['ok', '✓', 'dentro'],
+          ] as const
+        ).map(([level, icon, text]) => (
+          <span key={text} className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono font-bold ${HEAT_TONE[level]}`}>
+            <span aria-hidden="true" className="text-[9px] font-normal">
+              {icon}
+            </span>
+            {text}
+          </span>
+        ))}
+        <span>· Bloq. e Atras.: ▲ qualquer valor · zero fica apagado.</span>
+        {!(perPersonLimit && perPersonLimit > 0) && (
+          <span className="text-amber-300">● Defina o limite por pessoa em Fluxo › WIP por pessoa para colorir "Andamento".</span>
+        )}
       </div>
 
       {teams.length === 0 && (
