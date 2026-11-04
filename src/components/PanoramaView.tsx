@@ -2,6 +2,7 @@ import React from 'react';
 import { LayoutDashboard } from 'lucide-react';
 import type { RedlevelsConfig, RedmineIssue, TabKey } from '../types/redmine';
 import { DependencyStrip } from './DependencyLinks';
+import type { AttentionKey } from '../services/attentionFilters';
 import { LEVEL_LABEL, LEVEL_QUESTION, LevelKey, LevelsOverview, ProblemTag, verdictOf } from '../services/levelHealth';
 
 interface PanoramaViewProps {
@@ -9,6 +10,8 @@ interface PanoramaViewProps {
   overview: LevelsOverview;
   config: RedlevelsConfig;
   onSelectTab: (tab: TabKey) => void;
+  /** Opens Operacional or Tático with these attention shortcuts already on. */
+  onOpenFiltered: (level: 'operacional' | 'tatico', keys: AttentionKey[]) => void;
   onSelectIssue: (issue: RedmineIssue) => void;
 }
 
@@ -52,7 +55,9 @@ const LevelCard: React.FC<{
   totalProblems: number;
   onOpenTab: () => void;
   onOpenIssue: (issue: RedmineIssue) => void;
-}> = ({ level, overview, rows, totalProblems, onOpenTab, onOpenIssue }) => {
+  /** Only for Operacional and Tático. */
+  onShortcut?: (key: AttentionKey) => void;
+}> = ({ level, overview, rows, totalProblems, onOpenTab, onOpenIssue, onShortcut }) => {
   const name = LEVEL_LABEL[level];
   const verdict = verdictOf(level, overview.levels[level]);
   return (
@@ -113,6 +118,33 @@ const LevelCard: React.FC<{
         <div className="px-0.5 py-1 text-xs text-slate-400">✓ Nada exige atenção neste nível.</div>
       )}
 
+      {onShortcut && (
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Abrir ${name} já filtrado`}>
+          {(
+            [
+              ['blocked', '▲', 'bloqueada(s)', overview.levels[level].blocked, 'danger'],
+              ['late', '▲', 'atrasada(s)', overview.levels[level].overdue, 'danger'],
+              ['stale', '●', 'parada(s)', overview.levels[level].stale, 'warn'],
+            ] as const
+          )
+            .filter(([, , , n]) => n > 0)
+            .map(([key, icon, label, n, tone]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onShortcut(key)}
+                title={`Abrir ${name} mostrando só as ${label}`}
+                className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 text-[11px] font-bold hover:brightness-125 ${TAG_TONE[tone]}`}
+              >
+                <span aria-hidden="true" className="text-[9px]">
+                  {icon}
+                </span>
+                {n} {label}
+              </button>
+            ))}
+        </div>
+      )}
+
       <button
         type="button"
         onClick={onOpenTab}
@@ -124,7 +156,7 @@ const LevelCard: React.FC<{
   );
 };
 
-export const PanoramaView: React.FC<PanoramaViewProps> = ({ issues, overview, config, onSelectTab, onSelectIssue }) => {
+export const PanoramaView: React.FC<PanoramaViewProps> = ({ issues, overview, config, onSelectTab, onOpenFiltered, onSelectIssue }) => {
   const issueRows = (level: 'operacional' | 'tatico'): Row[] =>
     overview.worst[level].slice(0, WORST_SHOWN).map(({ issue, tags }) => ({
       key: issue.id,
@@ -166,6 +198,7 @@ export const PanoramaView: React.FC<PanoramaViewProps> = ({ issues, overview, co
             rows={issueRows('operacional')}
             totalProblems={overview.worst.operacional.length}
             onOpenTab={() => onSelectTab('operacional')}
+            onShortcut={(key) => onOpenFiltered('operacional', [key])}
             onOpenIssue={onSelectIssue}
           />
           <LevelCard
@@ -174,6 +207,7 @@ export const PanoramaView: React.FC<PanoramaViewProps> = ({ issues, overview, co
             rows={issueRows('tatico')}
             totalProblems={overview.worst.tatico.length}
             onOpenTab={() => onSelectTab('tatico')}
+            onShortcut={(key) => onOpenFiltered('tatico', [key])}
             onOpenIssue={onSelectIssue}
           />
           <LevelCard

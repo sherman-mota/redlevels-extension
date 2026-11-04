@@ -10,6 +10,7 @@ import { EquipesView } from './components/EquipesView';
 import { FluxoView } from './components/FluxoView';
 import { DependenciasView } from './components/DependenciasView';
 import { DependencyProvider } from './components/DependencyContext';
+import type { AttentionKey } from './services/attentionFilters';
 import { ConfirmHost, askConfirm } from './components/ConfirmHost';
 import { EditLockButton } from './components/EditLockButton';
 import { authorizeWrite, hostOf, isUnlocked, renewUnlock, statusChangeLines, userLabel } from './services/writeGuard';
@@ -95,6 +96,8 @@ export default function App() {
 
   // Navigation state
   const [currentTab, setCurrentTab] = useState<TabKey>('operacional');
+  // Panorama shortcut: open a level with attention shortcuts on (applied once by the panel).
+  const [attentionRequest, setAttentionRequest] = useState<{ tab: 'operacional' | 'tatico'; keys: AttentionKey[]; id: number } | null>(null);
   // Issues the active tab is displaying (filters applied); published by the tab, used by the CSV export
   const [visibleIssues, setVisibleIssues] = useState<RedmineIssue[]>([]);
 
@@ -1008,6 +1011,10 @@ export default function App() {
                 overview={levelsOverview}
                 config={config}
                 onSelectTab={setCurrentTab}
+                onOpenFiltered={(tab, keys) => {
+                  setAttentionRequest({ tab, keys, id: Date.now() });
+                  setCurrentTab(tab);
+                }}
                 onSelectIssue={handleSelectIssue}
               />
             )}
@@ -1040,6 +1047,10 @@ export default function App() {
                 onMoveIssue={handleMoveIssue}
                 isLoading={isRefreshing}
                 onVisibleIssuesChange={setVisibleIssues}
+                wipLimits={config.wipLimits}
+                levelHealth={levelsOverview.levels.operacional}
+                attentionRequest={attentionRequest?.tab === 'operacional' ? attentionRequest : null}
+                onAttentionRequestHandled={() => setAttentionRequest(null)}
               />
             )}
             {currentTab === 'tatico' && (
@@ -1061,6 +1072,10 @@ export default function App() {
                 onMoveIssue={handleMoveIssue}
                 isLoading={isRefreshing}
                 onVisibleIssuesChange={setVisibleIssues}
+                config={config}
+                levelHealth={levelsOverview.levels.tatico}
+                attentionRequest={attentionRequest?.tab === 'tatico' ? attentionRequest : null}
+                onAttentionRequestHandled={() => setAttentionRequest(null)}
               />
             )}
             {currentTab === 'estrategico' && (

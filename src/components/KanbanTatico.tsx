@@ -16,9 +16,16 @@ import {
   RedmineTracker,
   RedmineCustomFieldDef,
   StatusMapping,
+  RedlevelsConfig,
 } from '../types/redmine';
 import { KanbanBoard, FocusProblemsToggle, buildColumns, useFocusProblems, BoardLane } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
+import { AttentionFilters } from './AttentionFilters';
+import { LevelStatusBar } from './LevelStatusBar';
+import type { LevelHealth } from '../services/levelHealth';
+import { ChildrenProgress } from './CardRelations';
+import { countByStage } from '../services/issueStage';
+import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface KanbanTaticoProps {
   issues: RedmineIssue[];
@@ -37,6 +44,13 @@ interface KanbanTaticoProps {
   isLoading?: boolean;
   /** Publishes the list currently shown (after filters), used by the CSV export. */
   onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
+  /** Needed to read the stage of the child tasks (they belong to the operational level). */
+  config: RedlevelsConfig;
+  /** Health of this level (whole level, not the current filters); shows the verdict at the top. */
+  levelHealth?: LevelHealth;
+  /** Asks the panel to open with these attention shortcuts on (e.g. from the Panorama). */
+  attentionRequest?: { keys: AttentionKey[]; id: number } | null;
+  onAttentionRequestHandled?: () => void;
 }
 
 export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
@@ -54,13 +68,26 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   onSelectIssue,
   onMoveIssue,
   onVisibleIssuesChange,
+  config,
+  levelHealth,
+  attentionRequest,
+  onAttentionRequestHandled,
 }) => {
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
-  const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [attention, setAttention] = useState<AttentionKey[]>([]);
+  const issuesById = useMemo(() => new Map(issues.map((i) => [i.id, i])), [issues]);
+
+  // The Panorama can open this panel already filtered; the request is applied once and then cleared.
+  useEffect(() => {
+    if (!attentionRequest) return;
+    setAttention(attentionRequest.keys);
+    onAttentionRequestHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attentionRequest?.id]);
   const [selectedCustomFieldFilter, setSelectedCustomFieldFilter] = useState<{ fieldId: number; value: string } | null>(null);
   const [groupByStrategic, setGroupByStrategic] = useState(true);
   const [focusProblems, setFocusProblems] = useFocusProblems();
@@ -129,7 +156,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   }, [issues, filterableCustomField]);
 
   // Filter tactical issues
-  const tacticalIssues = useMemo(() => {
+  const scopedIssues = useMemo(() => {
     return issues.filter((issue) => {
       // Must be tactical tracker if configured
       if (tacticalTrackerIds.length > 0 && !tacticalTrackerIds.includes(issue.tracker.id)) {
@@ -166,11 +193,6 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         return false;
       }
 
-      // Blocked filter
-      if (onlyBlocked && !issue.is_blocked) {
-        return false;
-      }
-
       // Custom field filter
       if (selectedCustomFieldFilter) {
         const cf = issue.custom_fields?.find((f) => f.id === selectedCustomFieldFilter.fieldId);
@@ -188,9 +210,17 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     selectedProjectIds,
     selectedAssignees,
     selectedTrackerId,
-    onlyBlocked,
     selectedCustomFieldFilter,
   ]);
+
+  // The attention shortcuts apply on top of the other filters; their counts use `scopedIssues`.
+  const tacticalIssues = useMemo(
+    () => scopedIssues.filter((issue) => passesAttention(issue, attention, statusMapping.done)),
+    [scopedIssues, attention, statusMapping.done]
+  );
+
+  // Issues per stage in the whole panel, for the WIP limit shown in the column headers.
+  const stageCounts = useMemo(() => countByStage(tacticalIssues, statusMapping), [tacticalIssues, statusMapping]);
 
   useEffect(() => {
     onVisibleIssuesChange?.(tacticalIssues);
@@ -291,7 +321,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     setSelectedProjectIds([]);
     setSelectedAssignees([]);
     setSelectedTrackerId('all');
-    setOnlyBlocked(false);
+    setAttention([]);
     setSelectedCustomFieldFilter(null);
   };
 
@@ -299,12 +329,14 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     (selectedProjectIds.length > 0 ? 1 : 0) +
     (selectedAssignees.length > 0 ? 1 : 0) +
     (selectedTrackerId !== 'all' ? 1 : 0) +
-    (onlyBlocked ? 1 : 0) +
+    (attention.length > 0 ? 1 : 0) +
     (selectedCustomFieldFilter ? 1 : 0) +
     (searchQuery ? 1 : 0);
 
   return (
     <div className="space-y-4">
+      {levelHealth && <LevelStatusBar level="tatico" health={levelHealth} />}
+
       {/* Top Banner & Control Bar */}
       <div className="relative z-30 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -474,19 +506,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
             </select>
           </div>
 
-          {/* Blocked only toggle */}
+          {/* Clear filters */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-            >
-              <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
-              <span>Itens Bloqueados</span>
-            </button>
-
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearAllFilters}
@@ -500,6 +521,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         </div>
       </div>
 
+      <AttentionFilters issues={scopedIssues} doneStatusIds={statusMapping.done} selected={attention} onChange={setAttention} />
+
       {/* Shared Kanban Board with Tactical styling */}
       <KanbanBoard
         lanes={lanes}
@@ -507,6 +530,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         accent="purple"
         density={columnDensity}
         focusProblems={focusProblems}
+        wipLimits={config.wipLimits}
+        stageCounts={stageCounts}
         pendingIssueIds={pendingIssueIds}
         collapsedLanes={collapsedLanes}
         onToggleLaneCollapse={handleToggleLaneCollapse}
@@ -554,32 +579,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
               {issue.subject}
             </h5>
 
-            {/* Requisito 3: IDs das tarefas filhas */}
-            {issue.children && issue.children.length > 0 && (
-              <div className="mb-2.5 p-1.5 rounded-lg bg-slate-900/90 border border-slate-800/80">
-                <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                  <span className="font-medium">Tarefas Filhas:</span>
-                  <span className="font-mono font-bold text-slate-300">
-                    {issue.children.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 flex-wrap">
-                  {issue.children.slice(0, 4).map((child) => (
-                    <span
-                      key={child.id}
-                      className="font-mono text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700/60"
-                    >
-                      #{child.id}
-                    </span>
-                  ))}
-                  {issue.children.length > 4 && (
-                    <span className="text-[9px] font-mono text-slate-500">
-                      +{issue.children.length - 4}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Child tasks: progress, risk and problem counts */}
+            <ChildrenProgress issue={issue} byId={issuesById} config={config} />
 
             {/* Bottom row: Requisito 3: Projeto & Responsável */}
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/80 gap-2">

@@ -14,7 +14,7 @@ import {
   Maximize2,
   Sparkles,
 } from 'lucide-react';
-import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping } from '../types/redmine';
+import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping, WipLimits } from '../types/redmine';
 import {
   KanbanBoard,
   FocusProblemsToggle,
@@ -25,6 +25,12 @@ import {
   BoardColumn,
 } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
+import { AttentionFilters } from './AttentionFilters';
+import { LevelStatusBar } from './LevelStatusBar';
+import type { LevelHealth } from '../services/levelHealth';
+import { ParentLine } from './CardRelations';
+import { countByStage } from '../services/issueStage';
+import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface KanbanOperacionalProps {
   issues: RedmineIssue[];
@@ -43,6 +49,13 @@ interface KanbanOperacionalProps {
   isLoading?: boolean;
   /** Publishes the list currently shown (after filters), used by the CSV export. */
   onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
+  /** WIP limits (Fluxo tab), shown in the column headers. */
+  wipLimits?: WipLimits;
+  /** Health of this level (whole level, not the current filters); shows the verdict at the top. */
+  levelHealth?: LevelHealth;
+  /** Asks the panel to open with these attention shortcuts on (e.g. from the Panorama). */
+  attentionRequest?: { keys: AttentionKey[]; id: number } | null;
+  onAttentionRequestHandled?: () => void;
 }
 
 export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
@@ -59,13 +72,26 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   onSelectIssue,
   onMoveIssue,
   onVisibleIssuesChange,
+  wipLimits,
+  levelHealth,
+  attentionRequest,
+  onAttentionRequestHandled,
 }) => {
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
-  const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [attention, setAttention] = useState<AttentionKey[]>([]);
+  const issuesById = useMemo(() => new Map(issues.map((i) => [i.id, i])), [issues]);
+
+  // The Panorama can open this panel already filtered; the request is applied once and then cleared.
+  useEffect(() => {
+    if (!attentionRequest) return;
+    setAttention(attentionRequest.keys);
+    onAttentionRequestHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attentionRequest?.id]);
   const [filterParentId, setFilterParentId] = useState<string>('');
   const [groupBy, setGroupBy] = useState<'none' | 'project' | 'assignee'>('project');
   const [focusProblems, setFocusProblems] = useFocusProblems();
@@ -163,7 +189,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   }, [assignees]);
 
   // Filter issues belonging to operational trackers matching active search & filters
-  const operationalIssues = useMemo(() => {
+  const scopedIssues = useMemo(() => {
     return issues.filter((issue) => {
       // Must be an operational tracker if any are configured
       if (operationalTrackerIds.length > 0 && !operationalTrackerIds.includes(issue.tracker.id)) {
@@ -195,11 +221,6 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
         }
       }
 
-      // Blocked filter
-      if (onlyBlocked && !issue.is_blocked) {
-        return false;
-      }
-
       // Parent ID filter
       if (filterParentId.trim()) {
         if (!issue.parent || !String(issue.parent.id).includes(filterParentId.trim())) {
@@ -215,9 +236,17 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     searchQuery,
     selectedProjectIds,
     selectedAssignees,
-    onlyBlocked,
     filterParentId,
   ]);
+
+  // The attention shortcuts apply on top of the other filters; their counts use `scopedIssues`.
+  const operationalIssues = useMemo(
+    () => scopedIssues.filter((issue) => passesAttention(issue, attention, statusMapping.done)),
+    [scopedIssues, attention, statusMapping.done]
+  );
+
+  // Issues per stage in the whole panel, for the WIP limit shown in the column headers.
+  const stageCounts = useMemo(() => countByStage(operationalIssues, statusMapping), [operationalIssues, statusMapping]);
 
   // Statuses of the shown issues that are in no mapping category (see Configuração › Mapeamento de status)
   const unmapped = useMemo(
@@ -326,7 +355,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     (selectedProjectIds.length > 0 ? 1 : 0) +
     (selectedAssignees.length > 0 ? 1 : 0) +
     (selectedTrackerId !== 'all' ? 1 : 0) +
-    (onlyBlocked ? 1 : 0) +
+    (attention.length > 0 ? 1 : 0) +
     (filterParentId ? 1 : 0) +
     (searchQuery ? 1 : 0);
 
@@ -335,7 +364,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     setSelectedProjectIds([]);
     setSelectedAssignees([]);
     setSelectedTrackerId('all');
-    setOnlyBlocked(false);
+    setAttention([]);
     setFilterParentId('');
   };
 
@@ -407,16 +436,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             </span>
           </div>
 
-          {/* ID da tarefa pai */}
-          {issue.parent && (
-            <span
-              className="font-mono text-[10px] font-semibold text-blue-300 bg-blue-950/50 px-1.5 py-0.2 rounded border border-blue-900/50"
-              title={`Tarefa Pai #${issue.parent.id}`}
-            >
-              Pai: #{issue.parent.id}
-            </span>
-          )}
         </div>
+
+        {/* Initiative > parent item (opens the parent) */}
+        <ParentLine issue={issue} byId={issuesById} onSelectIssue={onSelectIssue} />
 
         {/* Sinalização de impedimento */}
         {issue.is_blocked && (
@@ -524,6 +547,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
 
   return (
     <div className="space-y-4">
+      {levelHealth && <LevelStatusBar level="operacional" health={levelHealth} />}
+
       {/* Top Banner & Control Bar */}
       <div className="relative z-30 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -763,19 +788,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             />
           </div>
 
-          {/* Blocked only toggle & clear */}
+          {/* Clear filters */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-            >
-              <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
-              <span>Itens Bloqueados</span>
-            </button>
-
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearAllFilters}
@@ -788,6 +802,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           </div>
         </div>
       </div>
+
+      <AttentionFilters issues={scopedIssues} doneStatusIds={statusMapping.done} selected={attention} onChange={setAttention} />
 
       {/* Tracker Tabs Bar (quando há mais de 1 tracker operacional) */}
       {operationalTrackers.length > 1 && (
@@ -993,6 +1009,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                   renderCard={renderCard}
                   lightView={lightView}
                   focusProblems={focusProblems}
+                  wipLimits={wipLimits}
+                  stageCounts={stageCounts}
                 />
               )}
             </div>
