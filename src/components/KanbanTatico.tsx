@@ -21,6 +21,8 @@ import {
 import { KanbanBoard, FocusProblemsToggle, buildColumns, useFocusProblems, BoardLane } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 import { AttentionFilters } from './AttentionFilters';
+import { LevelStatusBar } from './LevelStatusBar';
+import type { LevelHealth } from '../services/levelHealth';
 import { ChildrenProgress } from './CardRelations';
 import { countByStage } from '../services/issueStage';
 import { AttentionKey, passesAttention } from '../services/attentionFilters';
@@ -44,6 +46,8 @@ interface KanbanTaticoProps {
   onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
   /** Needed to read the stage of the child tasks (they belong to the operational level). */
   config: RedlevelsConfig;
+  /** Health of this level (whole level, not the current filters); shows the verdict at the top. */
+  levelHealth?: LevelHealth;
   /** Asks the panel to open with these attention shortcuts on (e.g. from the Panorama). */
   attentionRequest?: { keys: AttentionKey[]; id: number } | null;
   onAttentionRequestHandled?: () => void;
@@ -65,6 +69,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   onMoveIssue,
   onVisibleIssuesChange,
   config,
+  levelHealth,
   attentionRequest,
   onAttentionRequestHandled,
 }) => {
@@ -330,6 +335,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
 
   return (
     <div className="space-y-4">
+      {levelHealth && <LevelStatusBar level="tatico" health={levelHealth} />}
+
       {/* Top Banner & Control Bar */}
       <div className="relative z-30 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">

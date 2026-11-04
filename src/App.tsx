@@ -1048,6 +1048,7 @@ export default function App() {
                 isLoading={isRefreshing}
                 onVisibleIssuesChange={setVisibleIssues}
                 wipLimits={config.wipLimits}
+                levelHealth={levelsOverview.levels.operacional}
                 attentionRequest={attentionRequest?.tab === 'operacional' ? attentionRequest : null}
                 onAttentionRequestHandled={() => setAttentionRequest(null)}
               />
@@ -1072,6 +1073,7 @@ export default function App() {
                 isLoading={isRefreshing}
                 onVisibleIssuesChange={setVisibleIssues}
                 config={config}
+                levelHealth={levelsOverview.levels.tatico}
                 attentionRequest={attentionRequest?.tab === 'tatico' ? attentionRequest : null}
                 onAttentionRequestHandled={() => setAttentionRequest(null)}
               />
