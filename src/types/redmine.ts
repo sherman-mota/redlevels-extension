@@ -150,6 +150,8 @@ export interface RedlevelsConfig {
   tacticalStatusMapping?: StatusMapping;
   theme: ThemeId;
   hasSeenTour: boolean;
+  /** Opt-in: writes to Redmine need the edit lock open and a confirmation (default: off). */
+  safeEditMode?: boolean;
   operationalColumnOrder?: number[];
   tacticalColumnOrder?: number[];
   loadAllIssueStatuses?: boolean;
