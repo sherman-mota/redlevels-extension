@@ -85,6 +85,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
 
   // Task fetching scope & volume
   const [loadAllIssueStatuses, setLoadAllIssueStatuses] = useState<boolean>(Boolean(config.loadAllIssueStatuses));
+  const [safeEditMode, setSafeEditMode] = useState<boolean>(config.safeEditMode === true);
   const [closedLookbackDays, setClosedLookbackDays] = useState<number>(
     typeof config.closedLookbackDays === 'number' ? config.closedLookbackDays : 30
   );
@@ -331,6 +332,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         loadAllIssueStatuses,
         closedLookbackDays,
         maxIssuesLimit,
+        safeEditMode,
         teams: config.teams ?? [],
         wipLimits: config.wipLimits ?? {},
       },
@@ -399,6 +401,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
       if (imported.loadAllIssueStatuses !== undefined) setLoadAllIssueStatuses(imported.loadAllIssueStatuses);
       if (imported.closedLookbackDays !== undefined) setClosedLookbackDays(imported.closedLookbackDays);
       if (imported.maxIssuesLimit !== undefined) setMaxIssuesLimit(imported.maxIssuesLimit);
+      if (imported.safeEditMode !== undefined) setSafeEditMode(imported.safeEditMode === true);
 
       await onSaveConfig({
         ...imported,
@@ -492,6 +495,7 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
         loadAllIssueStatuses,
         closedLookbackDays,
         maxIssuesLimit,
+        safeEditMode,
       });
 
       applyTheme(theme);
@@ -1171,6 +1175,27 @@ export const ConfiguracaoView: React.FC<ConfiguracaoViewProps> = ({
             <span className="text-[10px] text-emerald-400 block">
               A busca agora é individualizada por tracker, garantindo paridade total com o Redmine.
             </span>
+          </div>
+
+          {/* Opção 4: Edição segura */}
+          <div className="space-y-2 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={safeEditMode}
+                onChange={(e) => setSafeEditMode(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-rose-500"
+              />
+              <span>
+                <span className="text-xs font-semibold text-slate-200 block">Edição segura (somente leitura por padrão)</span>
+                <span className="text-[11px] text-slate-400 block mt-0.5">
+                  Desligada, o app grava no Redmine como sempre. Ligada, a barra superior ganha um cadeado: só é possível
+                  mover tarefas, comentar ou marcar impedimento depois de liberar a edição (volta a bloquear sozinha em 15
+                  minutos), e cada gravação pede uma confirmação mostrando quem grava, onde e o que muda. Não vale no modo
+                  demonstração.
+                </span>
+              </span>
+            </label>
           </div>
         </div>
       </div>

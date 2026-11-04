@@ -17,6 +17,7 @@ import {
 } from './demoData';
 import { loadDemoIssues, saveDemoIssues } from './storage';
 import type { UnitScope } from './unitScope';
+import { consumeAuthorization } from './writeGuard';
 
 export interface RedmineApiResult<T> {
   success: boolean;
@@ -131,6 +132,7 @@ export class RedmineClient {
   private apiKey: string;
   private isDemo: boolean;
   private unit: UnitScope | null;
+  private guardWrites = false;
 
   /** `unit`: when set, every /issues.json collection query is restricted to those projects. */
   constructor(url: string, apiKey: string, isDemo: boolean = false, unit: UnitScope | null = null) {
@@ -138,6 +140,11 @@ export class RedmineClient {
     this.apiKey = (apiKey || '').trim();
     this.isDemo = isDemo;
     this.unit = unit;
+  }
+
+  /** Safe edit mode: `updateIssue` refuses to write without a single-use authorization (see writeGuard). */
+  setGuardWrites(enabled: boolean): void {
+    this.guardWrites = enabled;
   }
 
   /**
@@ -581,6 +588,9 @@ export class RedmineClient {
     fields: { status_id?: number; notes?: string; custom_fields?: { id: number; value: unknown }[] }
   ): Promise<RedmineApiResult<RedmineIssue>> {
     if (this.isDemo) return this.updateDemoIssue(issueId, fields);
+    if (this.guardWrites && !consumeAuthorization(issueId)) {
+      return { success: false, error: 'Gravação bloqueada: o modo de edição segura exige liberar a edição e confirmar a alteração.' };
+    }
 
     const res = await this.request(`/issues/${issueId}.json`, { method: 'PUT', body: { issue: fields } });
     const fresh = await this.getIssueDetail(issueId);
