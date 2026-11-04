@@ -10,6 +10,9 @@ import { EquipesView } from './components/EquipesView';
 import { FluxoView } from './components/FluxoView';
 import { DependenciasView } from './components/DependenciasView';
 import { DependencyProvider } from './components/DependencyContext';
+import { ConfirmHost, askConfirm } from './components/ConfirmHost';
+import { EditLockButton } from './components/EditLockButton';
+import { authorizeWrite, hostOf, isUnlocked, renewUnlock, statusChangeLines, userLabel } from './services/writeGuard';
 import { buildDependencies } from './services/dependencies';
 import { PanoramaView } from './components/PanoramaView';
 import { computeLevelHealth } from './services/levelHealth';
@@ -135,6 +138,11 @@ export default function App() {
     return new RedmineClient(config.redmineUrl, config.apiKey, config.isDemoMode, unitScopeOf(config));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.redmineUrl, config.apiKey, config.isDemoMode, unitKey]);
+
+  // Safe edit mode is a plain switch on the client: toggling it must not rebuild the client (that reloads everything).
+  useEffect(() => {
+    client.setGuardWrites(config.safeEditMode === true && !config.isDemoMode);
+  }, [client, config.safeEditMode, config.isDemoMode]);
 
   // Only settings that change WHICH issues are downloaded force a full reload. Saving anything else
   // (teams, column order, theme...) used to re-create loadData and refetch everything from Redmine.
@@ -539,9 +547,44 @@ export default function App() {
     }
   };
 
+  /**
+   * Safe edit mode gate: true when the write may go on. With the mode off (or in demo) it always is.
+   * With it on, the edit lock must be open and the user must confirm what changes; the confirmation
+   * authorizes ONE write to this issue (see writeGuard), which updateIssue then consumes.
+   */
+  const confirmWrite = async (issueId: number, changes: string[]): Promise<boolean> => {
+    if (config.safeEditMode !== true || config.isDemoMode) return true;
+    if (!isUnlocked()) {
+      pushToast({
+        kind: 'warning',
+        text: 'Edição bloqueada (somente leitura). Para gravar no Redmine, libere a edição no cadeado da barra superior.',
+      });
+      return false;
+    }
+    const issue = issues.find((i) => i.id === issueId);
+    const ok = await askConfirm({
+      title: 'Gravar alteração no Redmine?',
+      issue: issue ? `#${issueId} — ${issue.subject}` : `#${issueId}`,
+      changes,
+      user: userLabel(currentUser),
+      server: hostOf(config.redmineUrl),
+      warning: currentUser ? null : 'Não foi possível identificar o usuário da chave de API. Confira em Configuração antes de gravar.',
+      confirmLabel: 'Gravar no Redmine',
+    });
+    if (ok) {
+      authorizeWrite(issueId);
+      renewUnlock();
+    }
+    return ok;
+  };
+
   // Move issue (Kanban Drag & Drop) -> Requisito: PUT /issues/[id].json
   // `isUndo`: this move reverts a previous one, so it does not offer another undo.
   const handleMoveIssue = async (issueId: number, targetStatusId: number, options?: { isUndo?: boolean }) => {
+    const movedFrom = issues.find((iss) => iss.id === issueId)?.status;
+    const movedTo = statuses.find((s) => s.id === targetStatusId);
+    if (!(await confirmWrite(issueId, statusChangeLines(movedFrom, { id: targetStatusId, name: movedTo?.name })))) return;
+
     const previousIssues = [...issues];
     const knownIssue = issues.find((iss) => iss.id === issueId);
     const fromStatus = knownIssue?.status;
@@ -657,6 +700,10 @@ export default function App() {
 
   // Update status with notes -> Requisito: O Kanban e modal sempre devem refletir o status real do Redmine
   const handleUpdateStatus = async (issueId: number, statusId: number, notes?: string) => {
+    const updateFrom = issues.find((iss) => iss.id === issueId)?.status;
+    const updateTo = statuses.find((s) => s.id === statusId);
+    if (!(await confirmWrite(issueId, statusChangeLines(updateFrom, { id: statusId, name: updateTo?.name }, notes)))) return;
+
     const previousIssues = [...issues];
     const previousSelected = selectedIssue;
     const statusObj = statuses.find((s) => s.id === statusId);
@@ -803,6 +850,7 @@ export default function App() {
     const targetFieldId = currentIssue?.custom_fields?.find((cf) => blockedIds.includes(cf.id))?.id || blockedIds[0];
 
     const nextValue = currentlyBlocked ? 'Não' : (config.blockedCustomFieldValueTrigger || 'Sim');
+    if (!(await confirmWrite(issueId, [`Impedimento: ${currentlyBlocked ? 'Sim → Não' : 'Não → Sim'}`]))) return;
     const res = await client.updateIssue(issueId, {
       custom_fields: [{ id: targetFieldId, value: nextValue }],
     });
@@ -867,6 +915,15 @@ export default function App() {
         onExportCsv={() => downloadCsv(visibleIssues, config, currentTab, dependencyGraph)}
         inboxCount={inboxCount}
         levelHealth={levelsOverview.levels}
+        editLock={
+          config.safeEditMode === true && !config.isDemoMode ? (
+            <EditLockButton
+              user={currentUser}
+              redmineUrl={config.redmineUrl}
+              onNotify={(kind, text) => pushToast({ kind, text })}
+            />
+          ) : null
+        }
         isRefreshing={isRefreshing}
       />
 
@@ -1099,6 +1156,7 @@ export default function App() {
         />
       </ErrorBoundary>
 
+      <ConfirmHost />
       <ToastHost toasts={toasts} onDismiss={dismissToast} />
     </div>
     </DependencyProvider>

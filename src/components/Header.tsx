@@ -38,6 +38,8 @@ interface HeaderProps {
   /** Health of each level; the tab shows a badge when it is not healthy. */
   levelHealth: Record<LevelKey, LevelHealth>;
   isRefreshing: boolean;
+  /** Safe edit mode: the padlock; null when the mode is off. */
+  editLock?: React.ReactNode;
 }
 
 const formatTime = (iso: string) =>
@@ -110,6 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
   inboxCount,
   levelHealth,
   isRefreshing,
+  editLock,
 }) => {
   const navRef = useRef<HTMLElement>(null);
 
@@ -198,6 +201,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Action Tools */}
           <div className="flex items-center gap-1 sm:gap-2">
+            {editLock}
+
             {/* CSV export of the issues shown on the active tab */}
             <button
               onClick={onExportCsv}
