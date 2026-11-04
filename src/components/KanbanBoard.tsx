@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronLeft, Focus, Loader2 } from 'lucide-react';
-import { KanbanColumnKey, RedmineIssue, RedmineStatus, StatusMapping } from '../types/redmine';
+import { KanbanColumnKey, RedmineIssue, RedmineStatus, StatusMapping, WipLimits } from '../types/redmine';
 import { normalizeStatusMapping } from '../services/storage';
 import { CardMetaLine } from './CardMetaLine';
 import { DependencyPills } from './DependencyLinks';
 import { cardHealth } from '../services/cardHealth';
+import { limitState } from '../services/flowMetrics';
 
 export const COLUMN_META: Record<KanbanColumnKey, { label: string; dot: string; chip: string }> = {
   backlog: { label: 'Backlog', dot: 'bg-slate-400', chip: 'bg-slate-800 text-slate-300 border-slate-700' },
@@ -162,6 +163,10 @@ interface KanbanBoardProps {
   lightView?: boolean;
   /** Fade the cards that are fine (ok / done) so blocked and overdue ones stand out. */
   focusProblems?: boolean;
+  /** WIP limits (Fluxo tab); the column header shows its count against the limit of its stage. */
+  wipLimits?: WipLimits;
+  /** Issues per stage in the whole panel (all lanes and trackers), to compare with the limit. */
+  stageCounts?: Record<KanbanColumnKey, number>;
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -180,6 +185,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   initialCollapseDone = true,
   lightView = false,
   focusProblems = false,
+  wipLimits,
+  stageCounts,
 }) => {
   const [dragged, setDragged] = useState<{ id: number; statusId: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -464,9 +471,36 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               {meta.label}
                             </span>
                           )}
-                          <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                            {columnIssues.length}
-                          </span>
+                          {(() => {
+                            // The limit is per stage: it counts every column of the stage, in every lane, within the current filters.
+                            const limit = category && category !== 'done' ? wipLimits?.[category] : undefined;
+                            if (!limit || !category || !stageCounts) {
+                              return (
+                                <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                                  {columnIssues.length}
+                                </span>
+                              );
+                            }
+                            const total = stageCounts[category];
+                            const state = limitState(total, limit);
+                            const tone =
+                              state === 'over'
+                                ? 'bg-rose-950/60 text-rose-300 ring-1 ring-rose-500'
+                                : state === 'at'
+                                  ? 'bg-amber-950/50 text-amber-300'
+                                  : 'bg-slate-800 text-slate-300';
+                            const text = state === 'over' ? 'acima do limite' : state === 'at' ? 'no limite' : 'dentro do limite';
+                            return (
+                              <span
+                                className={`text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-full ${tone}`}
+                                title={`WIP da etapa: ${total} de ${limit} (${text}). O limite é definido na aba Fluxo.`}
+                              >
+                                {state === 'over' && <span aria-hidden="true">▲ </span>}
+                                {state === 'at' && <span aria-hidden="true">● </span>}
+                                {total}/{limit}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
 

@@ -14,7 +14,7 @@ import {
   Maximize2,
   Sparkles,
 } from 'lucide-react';
-import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping } from '../types/redmine';
+import { RedmineIssue, RedmineStatus, RedmineProject, RedmineTracker, StatusMapping, WipLimits } from '../types/redmine';
 import {
   KanbanBoard,
   FocusProblemsToggle,
@@ -27,6 +27,7 @@ import {
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 import { AttentionFilters } from './AttentionFilters';
 import { ParentLine } from './CardRelations';
+import { countByStage } from '../services/issueStage';
 import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface KanbanOperacionalProps {
@@ -46,6 +47,8 @@ interface KanbanOperacionalProps {
   isLoading?: boolean;
   /** Publishes the list currently shown (after filters), used by the CSV export. */
   onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
+  /** WIP limits (Fluxo tab), shown in the column headers. */
+  wipLimits?: WipLimits;
   /** Asks the panel to open with these attention shortcuts on (e.g. from the Panorama). */
   attentionRequest?: { keys: AttentionKey[]; id: number } | null;
   onAttentionRequestHandled?: () => void;
@@ -65,6 +68,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   onSelectIssue,
   onMoveIssue,
   onVisibleIssuesChange,
+  wipLimits,
   attentionRequest,
   onAttentionRequestHandled,
 }) => {
@@ -235,6 +239,9 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     () => scopedIssues.filter((issue) => passesAttention(issue, attention, statusMapping.done)),
     [scopedIssues, attention, statusMapping.done]
   );
+
+  // Issues per stage in the whole panel, for the WIP limit shown in the column headers.
+  const stageCounts = useMemo(() => countByStage(operationalIssues, statusMapping), [operationalIssues, statusMapping]);
 
   // Statuses of the shown issues that are in no mapping category (see Configuração › Mapeamento de status)
   const unmapped = useMemo(
@@ -995,6 +1002,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
                   renderCard={renderCard}
                   lightView={lightView}
                   focusProblems={focusProblems}
+                  wipLimits={wipLimits}
+                  stageCounts={stageCounts}
                 />
               )}
             </div>

@@ -22,6 +22,7 @@ import { KanbanBoard, FocusProblemsToggle, buildColumns, useFocusProblems, Board
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 import { AttentionFilters } from './AttentionFilters';
 import { ChildrenProgress } from './CardRelations';
+import { countByStage } from '../services/issueStage';
 import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface KanbanTaticoProps {
@@ -212,6 +213,9 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     () => scopedIssues.filter((issue) => passesAttention(issue, attention, statusMapping.done)),
     [scopedIssues, attention, statusMapping.done]
   );
+
+  // Issues per stage in the whole panel, for the WIP limit shown in the column headers.
+  const stageCounts = useMemo(() => countByStage(tacticalIssues, statusMapping), [tacticalIssues, statusMapping]);
 
   useEffect(() => {
     onVisibleIssuesChange?.(tacticalIssues);
@@ -519,6 +523,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         accent="purple"
         density={columnDensity}
         focusProblems={focusProblems}
+        wipLimits={config.wipLimits}
+        stageCounts={stageCounts}
         pendingIssueIds={pendingIssueIds}
         collapsedLanes={collapsedLanes}
         onToggleLaneCollapse={handleToggleLaneCollapse}

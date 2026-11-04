@@ -1047,6 +1047,7 @@ export default function App() {
                 onMoveIssue={handleMoveIssue}
                 isLoading={isRefreshing}
                 onVisibleIssuesChange={setVisibleIssues}
+                wipLimits={config.wipLimits}
                 attentionRequest={attentionRequest?.tab === 'operacional' ? attentionRequest : null}
                 onAttentionRequestHandled={() => setAttentionRequest(null)}
               />
