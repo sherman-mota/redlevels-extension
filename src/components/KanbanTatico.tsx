@@ -19,6 +19,8 @@ import {
 } from '../types/redmine';
 import { KanbanBoard, FocusProblemsToggle, buildColumns, useFocusProblems, BoardLane } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
+import { AttentionFilters } from './AttentionFilters';
+import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface KanbanTaticoProps {
   issues: RedmineIssue[];
@@ -60,7 +62,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
-  const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [attention, setAttention] = useState<AttentionKey[]>([]);
   const [selectedCustomFieldFilter, setSelectedCustomFieldFilter] = useState<{ fieldId: number; value: string } | null>(null);
   const [groupByStrategic, setGroupByStrategic] = useState(true);
   const [focusProblems, setFocusProblems] = useFocusProblems();
@@ -129,7 +131,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   }, [issues, filterableCustomField]);
 
   // Filter tactical issues
-  const tacticalIssues = useMemo(() => {
+  const scopedIssues = useMemo(() => {
     return issues.filter((issue) => {
       // Must be tactical tracker if configured
       if (tacticalTrackerIds.length > 0 && !tacticalTrackerIds.includes(issue.tracker.id)) {
@@ -166,11 +168,6 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
         return false;
       }
 
-      // Blocked filter
-      if (onlyBlocked && !issue.is_blocked) {
-        return false;
-      }
-
       // Custom field filter
       if (selectedCustomFieldFilter) {
         const cf = issue.custom_fields?.find((f) => f.id === selectedCustomFieldFilter.fieldId);
@@ -188,9 +185,14 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     selectedProjectIds,
     selectedAssignees,
     selectedTrackerId,
-    onlyBlocked,
     selectedCustomFieldFilter,
   ]);
+
+  // The attention shortcuts apply on top of the other filters; their counts use `scopedIssues`.
+  const tacticalIssues = useMemo(
+    () => scopedIssues.filter((issue) => passesAttention(issue, attention, statusMapping.done)),
+    [scopedIssues, attention, statusMapping.done]
+  );
 
   useEffect(() => {
     onVisibleIssuesChange?.(tacticalIssues);
@@ -291,7 +293,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     setSelectedProjectIds([]);
     setSelectedAssignees([]);
     setSelectedTrackerId('all');
-    setOnlyBlocked(false);
+    setAttention([]);
     setSelectedCustomFieldFilter(null);
   };
 
@@ -299,7 +301,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
     (selectedProjectIds.length > 0 ? 1 : 0) +
     (selectedAssignees.length > 0 ? 1 : 0) +
     (selectedTrackerId !== 'all' ? 1 : 0) +
-    (onlyBlocked ? 1 : 0) +
+    (attention.length > 0 ? 1 : 0) +
     (selectedCustomFieldFilter ? 1 : 0) +
     (searchQuery ? 1 : 0);
 
@@ -474,19 +476,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
             </select>
           </div>
 
-          {/* Blocked only toggle */}
+          {/* Clear filters */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-            >
-              <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
-              <span>Itens Bloqueados</span>
-            </button>
-
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearAllFilters}
@@ -499,6 +490,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
           </div>
         </div>
       </div>
+
+      <AttentionFilters issues={scopedIssues} doneStatusIds={statusMapping.done} selected={attention} onChange={setAttention} />
 
       {/* Shared Kanban Board with Tactical styling */}
       <KanbanBoard

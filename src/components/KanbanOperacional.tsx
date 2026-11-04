@@ -25,6 +25,8 @@ import {
   BoardColumn,
 } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
+import { AttentionFilters } from './AttentionFilters';
+import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface KanbanOperacionalProps {
   issues: RedmineIssue[];
@@ -65,7 +67,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
-  const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [attention, setAttention] = useState<AttentionKey[]>([]);
   const [filterParentId, setFilterParentId] = useState<string>('');
   const [groupBy, setGroupBy] = useState<'none' | 'project' | 'assignee'>('project');
   const [focusProblems, setFocusProblems] = useFocusProblems();
@@ -163,7 +165,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   }, [assignees]);
 
   // Filter issues belonging to operational trackers matching active search & filters
-  const operationalIssues = useMemo(() => {
+  const scopedIssues = useMemo(() => {
     return issues.filter((issue) => {
       // Must be an operational tracker if any are configured
       if (operationalTrackerIds.length > 0 && !operationalTrackerIds.includes(issue.tracker.id)) {
@@ -195,11 +197,6 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
         }
       }
 
-      // Blocked filter
-      if (onlyBlocked && !issue.is_blocked) {
-        return false;
-      }
-
       // Parent ID filter
       if (filterParentId.trim()) {
         if (!issue.parent || !String(issue.parent.id).includes(filterParentId.trim())) {
@@ -215,9 +212,14 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     searchQuery,
     selectedProjectIds,
     selectedAssignees,
-    onlyBlocked,
     filterParentId,
   ]);
+
+  // The attention shortcuts apply on top of the other filters; their counts use `scopedIssues`.
+  const operationalIssues = useMemo(
+    () => scopedIssues.filter((issue) => passesAttention(issue, attention, statusMapping.done)),
+    [scopedIssues, attention, statusMapping.done]
+  );
 
   // Statuses of the shown issues that are in no mapping category (see Configuração › Mapeamento de status)
   const unmapped = useMemo(
@@ -326,7 +328,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     (selectedProjectIds.length > 0 ? 1 : 0) +
     (selectedAssignees.length > 0 ? 1 : 0) +
     (selectedTrackerId !== 'all' ? 1 : 0) +
-    (onlyBlocked ? 1 : 0) +
+    (attention.length > 0 ? 1 : 0) +
     (filterParentId ? 1 : 0) +
     (searchQuery ? 1 : 0);
 
@@ -335,7 +337,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
     setSelectedProjectIds([]);
     setSelectedAssignees([]);
     setSelectedTrackerId('all');
-    setOnlyBlocked(false);
+    setAttention([]);
     setFilterParentId('');
   };
 
@@ -763,19 +765,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             />
           </div>
 
-          {/* Blocked only toggle & clear */}
+          {/* Clear filters */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-            >
-              <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
-              <span>Itens Bloqueados</span>
-            </button>
-
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearAllFilters}
@@ -788,6 +779,8 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
           </div>
         </div>
       </div>
+
+      <AttentionFilters issues={scopedIssues} doneStatusIds={statusMapping.done} selected={attention} onChange={setAttention} />
 
       {/* Tracker Tabs Bar (quando há mais de 1 tracker operacional) */}
       {operationalTrackers.length > 1 && (
