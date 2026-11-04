@@ -26,6 +26,7 @@ import {
 } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 import { AttentionFilters } from './AttentionFilters';
+import { ParentLine } from './CardRelations';
 import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface KanbanOperacionalProps {
@@ -73,6 +74,7 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
   const [attention, setAttention] = useState<AttentionKey[]>([]);
+  const issuesById = useMemo(() => new Map(issues.map((i) => [i.id, i])), [issues]);
 
   // The Panorama can open this panel already filtered; the request is applied once and then cleared.
   useEffect(() => {
@@ -422,16 +424,10 @@ export const KanbanOperacional: React.FC<KanbanOperacionalProps> = ({
             </span>
           </div>
 
-          {/* ID da tarefa pai */}
-          {issue.parent && (
-            <span
-              className="font-mono text-[10px] font-semibold text-blue-300 bg-blue-950/50 px-1.5 py-0.2 rounded border border-blue-900/50"
-              title={`Tarefa Pai #${issue.parent.id}`}
-            >
-              Pai: #{issue.parent.id}
-            </span>
-          )}
         </div>
+
+        {/* Initiative > parent item (opens the parent) */}
+        <ParentLine issue={issue} byId={issuesById} onSelectIssue={onSelectIssue} />
 
         {/* Sinalização de impedimento */}
         {issue.is_blocked && (

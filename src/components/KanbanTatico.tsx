@@ -16,10 +16,12 @@ import {
   RedmineTracker,
   RedmineCustomFieldDef,
   StatusMapping,
+  RedlevelsConfig,
 } from '../types/redmine';
 import { KanbanBoard, FocusProblemsToggle, buildColumns, useFocusProblems, BoardLane } from './KanbanBoard';
 import { SearchableMultiSelect } from './SearchableMultiSelect';
 import { AttentionFilters } from './AttentionFilters';
+import { ChildrenProgress } from './CardRelations';
 import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface KanbanTaticoProps {
@@ -39,6 +41,8 @@ interface KanbanTaticoProps {
   isLoading?: boolean;
   /** Publishes the list currently shown (after filters), used by the CSV export. */
   onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
+  /** Needed to read the stage of the child tasks (they belong to the operational level). */
+  config: RedlevelsConfig;
   /** Asks the panel to open with these attention shortcuts on (e.g. from the Panorama). */
   attentionRequest?: { keys: AttentionKey[]; id: number } | null;
   onAttentionRequestHandled?: () => void;
@@ -59,6 +63,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   onSelectIssue,
   onMoveIssue,
   onVisibleIssuesChange,
+  config,
   attentionRequest,
   onAttentionRequestHandled,
 }) => {
@@ -68,6 +73,7 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
   const [attention, setAttention] = useState<AttentionKey[]>([]);
+  const issuesById = useMemo(() => new Map(issues.map((i) => [i.id, i])), [issues]);
 
   // The Panorama can open this panel already filtered; the request is applied once and then cleared.
   useEffect(() => {
@@ -560,32 +566,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
               {issue.subject}
             </h5>
 
-            {/* Requisito 3: IDs das tarefas filhas */}
-            {issue.children && issue.children.length > 0 && (
-              <div className="mb-2.5 p-1.5 rounded-lg bg-slate-900/90 border border-slate-800/80">
-                <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                  <span className="font-medium">Tarefas Filhas:</span>
-                  <span className="font-mono font-bold text-slate-300">
-                    {issue.children.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 flex-wrap">
-                  {issue.children.slice(0, 4).map((child) => (
-                    <span
-                      key={child.id}
-                      className="font-mono text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700/60"
-                    >
-                      #{child.id}
-                    </span>
-                  ))}
-                  {issue.children.length > 4 && (
-                    <span className="text-[9px] font-mono text-slate-500">
-                      +{issue.children.length - 4}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Child tasks: progress, risk and problem counts */}
+            <ChildrenProgress issue={issue} byId={issuesById} config={config} />
 
             {/* Bottom row: Requisito 3: Projeto & Responsável */}
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/80 gap-2">

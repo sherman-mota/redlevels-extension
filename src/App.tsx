@@ -1070,6 +1070,7 @@ export default function App() {
                 onMoveIssue={handleMoveIssue}
                 isLoading={isRefreshing}
                 onVisibleIssuesChange={setVisibleIssues}
+                config={config}
                 attentionRequest={attentionRequest?.tab === 'tatico' ? attentionRequest : null}
                 onAttentionRequestHandled={() => setAttentionRequest(null)}
               />
