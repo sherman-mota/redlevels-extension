@@ -39,6 +39,9 @@ interface KanbanTaticoProps {
   isLoading?: boolean;
   /** Publishes the list currently shown (after filters), used by the CSV export. */
   onVisibleIssuesChange?: (issues: RedmineIssue[]) => void;
+  /** Asks the panel to open with these attention shortcuts on (e.g. from the Panorama). */
+  attentionRequest?: { keys: AttentionKey[]; id: number } | null;
+  onAttentionRequestHandled?: () => void;
 }
 
 export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
@@ -56,6 +59,8 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   onSelectIssue,
   onMoveIssue,
   onVisibleIssuesChange,
+  attentionRequest,
+  onAttentionRequestHandled,
 }) => {
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +68,14 @@ export const KanbanTatico: React.FC<KanbanTaticoProps> = ({
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | 'all'>('all');
   const [attention, setAttention] = useState<AttentionKey[]>([]);
+
+  // The Panorama can open this panel already filtered; the request is applied once and then cleared.
+  useEffect(() => {
+    if (!attentionRequest) return;
+    setAttention(attentionRequest.keys);
+    onAttentionRequestHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attentionRequest?.id]);
   const [selectedCustomFieldFilter, setSelectedCustomFieldFilter] = useState<{ fieldId: number; value: string } | null>(null);
   const [groupByStrategic, setGroupByStrategic] = useState(true);
   const [focusProblems, setFocusProblems] = useFocusProblems();
