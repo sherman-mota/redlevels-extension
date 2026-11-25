@@ -12,6 +12,8 @@ import {
   Search,
 } from 'lucide-react';
 import { RedmineIssue, RedmineUser, RedmineStatus, InboxIds } from '../types/redmine';
+import { AttentionFilters } from './AttentionFilters';
+import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface InboxViewProps {
   issues: RedmineIssue[];
@@ -36,7 +38,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [inboxTab, setInboxTab] = useState<'assigned' | 'watched'>('assigned');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<number | 'all'>('all');
-  const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [attention, setAttention] = useState<AttentionKey[]>([]);
 
   const currentUserName = currentUser ? `${currentUser.firstname} ${currentUser.lastname}`.trim() : '';
 
@@ -74,7 +76,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const currentList = inboxTab === 'assigned' ? assignedIssues : watchedIssues;
 
   // Apply filters
-  const filteredIssues = useMemo(() => {
+  const scopedIssues = useMemo(() => {
     return currentList.filter((issue) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -88,13 +90,18 @@ export const InboxView: React.FC<InboxViewProps> = ({
         return false;
       }
 
-      if (onlyBlocked && !issue.is_blocked) {
-        return false;
-      }
-
       return true;
     });
-  }, [currentList, searchQuery, statusFilter, onlyBlocked]);
+  }, [currentList, searchQuery, statusFilter]);
+
+  // Statuses Redmine marks as closed: the attention shortcuts only look at open issues.
+  const closedStatusIds = useMemo(() => statuses.filter((s) => s.is_closed).map((s) => s.id), [statuses]);
+
+  // The shortcuts apply on top of the other filters; their counts use `scopedIssues`.
+  const filteredIssues = useMemo(
+    () => scopedIssues.filter((issue) => passesAttention(issue, attention, closedStatusIds)),
+    [scopedIssues, attention, closedStatusIds]
+  );
 
   useEffect(() => {
     onVisibleIssuesChange?.(filteredIssues);
@@ -193,20 +200,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
               ))}
             </select>
 
-            {/* Blocked */}
-            <button
-              onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${onlyBlocked
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Bloqueadas</span>
-            </button>
           </div>
         </div>
       </div>
+
+      <AttentionFilters issues={scopedIssues} doneStatusIds={closedStatusIds} selected={attention} onChange={setAttention} />
 
       {/* Task List */}
       <div className="space-y-2.5">

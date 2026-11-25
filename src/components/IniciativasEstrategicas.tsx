@@ -27,6 +27,8 @@ import {
   StrategicInitiative
 } from '../types/redmine';
 import { DEMO_STRATEGIC_INITIATIVES } from '../services/demoData';
+import { AttentionFilters } from './AttentionFilters';
+import { AttentionKey, passesAttention } from '../services/attentionFilters';
 
 interface IniciativasEstrategicasProps {
   issues: RedmineIssue[];
@@ -77,7 +79,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
   const [selectedProjectId, setSelectedProjectId] = useState<number | 'all'>('all');
   const [selectedAssignee, setSelectedAssignee] = useState<string | 'all'>('all');
   const [selectedStatusId, setSelectedStatusId] = useState<number | 'all'>('all');
-  const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [attention, setAttention] = useState<AttentionKey[]>([]);
   const [hideEmptyOrCompleted, setHideEmptyOrCompleted] = useState(true);
   const [selectedCustomFieldFilter, setSelectedCustomFieldFilter] = useState<{ fieldId: number; value: string } | null>(null);
 
@@ -253,26 +255,13 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
     selectedProjectId !== 'all' ||
     selectedAssignee !== 'all' ||
     selectedStatusId !== 'all' ||
-    onlyBlocked ||
+    attention.length > 0 ||
     Boolean(selectedCustomFieldFilter);
 
-  // Map tactical issues to initiatives
-  const initiativeTree = useMemo(() => {
-    return strategicInitiatives
-      .map((initiative) => {
-        const isNoInit = initiative.title === 'Sem Iniciativa Vinculada';
-
-        // Find tactical issues linked to this initiative
-        const linkedTactical = tacticalIssues.filter((tIssue) => {
-          const val = getStrategicValue(tIssue);
-          const matchesInitiative = isNoInit
-            ? !val
-            : val.trim().toLowerCase() === initiative.title.trim().toLowerCase() ||
-            (initiative.code && val.toUpperCase().includes(initiative.code));
-
-          if (!matchesInitiative) return false;
-
-          // Apply filters (Requisito 5)
+  // Tactical issues that pass the filters except the attention shortcuts: the base of the chip counts.
+  const scopedTactical = useMemo(
+    () =>
+      tacticalIssues.filter((tIssue) => {
           if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
             const matches =
@@ -294,18 +283,38 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
             return false;
           }
 
-          if (onlyBlocked && !tIssue.is_blocked) {
-            return false;
-          }
-
           if (selectedCustomFieldFilter) {
             const cf = tIssue.custom_fields?.find((f) => f.id === selectedCustomFieldFilter.fieldId);
             if (!cf || String(cf.value) !== selectedCustomFieldFilter.value) {
               return false;
             }
           }
+        return true;
+      }),
+    [tacticalIssues, searchQuery, selectedProjectId, selectedAssignee, selectedStatusId, selectedCustomFieldFilter]
+  );
+  const scopedTacticalIds = useMemo(() => new Set(scopedTactical.map((i) => i.id)), [scopedTactical]);
+  const closedStatusIds = useMemo(() => statuses.filter((st) => st.is_closed).map((st) => st.id), [statuses]);
 
-          return true;
+  // Map tactical issues to initiatives
+  const initiativeTree = useMemo(() => {
+    return strategicInitiatives
+      .map((initiative) => {
+        const isNoInit = initiative.title === 'Sem Iniciativa Vinculada';
+
+        // Find tactical issues linked to this initiative
+        const linkedTactical = tacticalIssues.filter((tIssue) => {
+          const val = getStrategicValue(tIssue);
+          const matchesInitiative = isNoInit
+            ? !val
+            : val.trim().toLowerCase() === initiative.title.trim().toLowerCase() ||
+            (initiative.code && val.toUpperCase().includes(initiative.code));
+
+          if (!matchesInitiative) return false;
+
+          // Filters (Requisito 5): the common ones are in `scopedTactical`; the attention shortcuts apply on top.
+          if (!scopedTacticalIds.has(tIssue.id)) return false;
+          return passesAttention(tIssue, attention, closedStatusIds);
         });
 
         // Calculate aggregated progress & blockers count
@@ -360,7 +369,9 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
     selectedProjectId,
     selectedAssignee,
     selectedStatusId,
-    onlyBlocked,
+    scopedTacticalIds,
+    attention,
+    closedStatusIds,
     hideEmptyOrCompleted,
     selectedCustomFieldFilter,
     hasActiveFilters,
@@ -372,7 +383,7 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
     setSelectedProjectId('all');
     setSelectedAssignee('all');
     setSelectedStatusId('all');
-    setOnlyBlocked(false);
+    setAttention([]);
     setSelectedCustomFieldFilter(null);
   };
 
@@ -525,19 +536,8 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
             </select>
           </div>
 
-          {/* Blocked only toggle */}
+          {/* Clear filters */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setOnlyBlocked(!onlyBlocked)}
-              className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${onlyBlocked
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-            >
-              <AlertTriangle className={`w-3.5 h-3.5 ${onlyBlocked ? 'text-rose-400' : 'text-slate-500'}`} />
-              <span>Itens Bloqueados</span>
-            </button>
-
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
@@ -550,6 +550,8 @@ export const IniciativasEstrategicas: React.FC<IniciativasEstrategicasProps> = (
           </div>
         </div>
       </div>
+
+      <AttentionFilters issues={scopedTactical} doneStatusIds={closedStatusIds} selected={attention} onChange={setAttention} />
 
       {/* Strategic Initiatives Tree View */}
       <div className="space-y-4">
